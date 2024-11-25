@@ -30,7 +30,7 @@ namespace AIHackathon
             "3️⃣ Отправь свою обученную модель для оценки. 🤖",
             "4️⃣ Следи за результатами своей команды!\n🏆"
         ];
-        private readonly static ButtonsSend Commands = new([["Рейтинг", "To CSV"],["Информация","Код оценивания"]]);
+        private readonly static ButtonsSend Commands = new([["Рейтинг", "To CSV"], ["Информация", "Код оценивания"]]);
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
         public static int Id => SharedUtils.CalculeteID<BotHandle>();
@@ -214,7 +214,7 @@ namespace AIHackathon
         {
             return updateData.Send(new SendingClient()
             {
-                Message = "Выдаю клавиатуру",
+                Message = "ГОРЯЧАЯ НОВИНА! 🔥 Клавиатура в твоих руках! ⌨️ Получай и наслаждайся быстрой печатью! 🚀",
                 Keyboard = Commands
             });
         }
@@ -232,21 +232,21 @@ namespace AIHackathon
             int rating = 1;
 
             var commandInfo = (from u in db.Users
-                       join c in db.Commands on u.CommandId equals c.CommandId
-                       join m in db.Metrics on u.Id equals m.UserId
-                       group new {c, m} by new { c.Name, c.CommandId } into g
-                       select new
-                       {
-                           commandName = g.Key.Name,
-                           commandId = g.Key.CommandId,
-                           accuracy = g.Max(x => x.m.Accuracy),
-                       }
+                               join c in db.Commands on u.CommandId equals c.CommandId
+                               join m in db.Metrics on u.Id equals m.UserId
+                               group new { c, m } by new { c.Name, c.CommandId } into g
+                               select new
+                               {
+                                   commandName = g.Key.Name,
+                                   commandId = g.Key.CommandId,
+                                   accuracy = g.Max(x => x.m.Accuracy),
+                               }
                        ).OrderBy(x => x.accuracy);
 
             foreach (var command in commandInfo)
             {
                 sending += $"[{rating++}] {command.commandName} -> Accuracy {command.accuracy}";
-                if(command.commandId == updateData.User.CommandId)
+                if (command.commandId == updateData.User.CommandId)
                     sending += "📍";
                 sending+="\n";
             }
@@ -258,13 +258,13 @@ namespace AIHackathon
         {
             var db = _bot.GetService<DataBase>();
             var fullInfo = string.Join("\n", (from u in db.Users
-                               join c in db.Commands on u.CommandId equals c.CommandId
-                               join m in db.Metrics on u.Id equals m.UserId
-                               select new 
-                               {
-                                   commandId = c.CommandId,
-                                   line = $"{u.Id};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
-                               }
+                                              join c in db.Commands on u.CommandId equals c.CommandId
+                                              join m in db.Metrics on u.Id equals m.UserId
+                                              select new
+                                              {
+                                                  commandId = c.CommandId,
+                                                  line = $"{u.Id};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
+                                              }
             ).AsNoTracking().AsEnumerable().Where(x => predict(x.commandId)).Select(x => x.line));
             return fullInfo;
         }

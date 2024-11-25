@@ -2,10 +2,10 @@
 
 namespace AIHackathon.Model
 {
-    public class ConcurrentList<T> : IEnumerable<T>, ICollection<T>
+    public class ConcurrentList<T>(IEnumerable<T>? items) : IEnumerable<T>, ICollection<T>
     {
-        private readonly List<T> _list;
-        private readonly ReaderWriterLockSlim _lock;
+        private readonly List<T> _list = items is null ? [] : new List<T>(items);
+        private readonly ReaderWriterLockSlim _lock = new();
 
         public int Count
         {
@@ -26,12 +26,6 @@ namespace AIHackathon.Model
         public bool IsReadOnly => false;
 
         public ConcurrentList() : this(null) { }
-
-        public ConcurrentList(IEnumerable<T> items)
-        {
-            _list = items is null ? new List<T>() : new List<T>(items);
-            _lock = new ReaderWriterLockSlim();
-        }
 
         public void Add(T item)
         {

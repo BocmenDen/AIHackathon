@@ -2,7 +2,7 @@
 
 namespace AIHackathon.Model
 {
-    public class User: BaseUser
+    public class User : BaseUser
     {
         public bool IsStarted { get; set; }
         public int? CommandId { get; set; } = null;

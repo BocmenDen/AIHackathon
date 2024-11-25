@@ -6,11 +6,11 @@ namespace AIHackathon.Services
     [Service<ILogger>]
     public class Logger : ILogger
     {
-        private Dictionary<int, string> _namesServices = [];
+        private readonly Dictionary<int, string> _namesServices = [];
         public void Log(string message, ILogger.LogTypes logTypes = ILogger.LogTypes.Info, int? senderId = null)
         {
             string? serviceName = senderId?.ToString();
-            if(senderId != null && _namesServices.TryGetValue((int)senderId, out string? name)) serviceName = name;
+            if (senderId != null && _namesServices.TryGetValue((int)senderId, out string? name)) serviceName = name;
 
             switch (logTypes)
             {

@@ -23,7 +23,7 @@ namespace AIHackathon.Services
         private readonly string _splitArgs = configuration[KeySplitArgument] ?? throw new Exception("Отсутствуют данные о разбиении полученных данных на аргументы");
 
         private readonly string _directoryFiles = configuration[KeyDirectory] ?? throw new Exception("Нед данных о расположении хранилища моделей");
-        private readonly ContextBot<User, DataBase> _contextBot=contextBot ?? throw new ArgumentNullException(nameof(contextBot));
+        private readonly ContextBot<User, DataBase> _contextBot = contextBot ?? throw new ArgumentNullException(nameof(contextBot));
 
         public async Task Run(ReceptionClient<User> updateData)
         {
