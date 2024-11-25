@@ -1,0 +1,3 @@
+[submodule "OneBot"]
+	path = OneBot
+	url = https://github.com/BocmenDen/OneBot.git

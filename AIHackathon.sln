@@ -1,9 +1,33 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35514.174 d17.12
+VisualStudioVersion = 17.12.35514.174
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIHackathon", "AIHackathon\AIHackathon.csproj", "{5BCE2F7F-7A36-4ACA-A4D5-8B83A180F970}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneBot", "OneBot\OneBot.Core\OneBot.csproj", "{404BAF66-C7C9-4D72-81C8-A788970CF1AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneBot.Tg", "OneBot\OneBot.Telegram\OneBot.Tg.csproj", "{C242F2C9-F492-4F65-9645-DE9FDE70D3B2}"
+EndProject
 Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5BCE2F7F-7A36-4ACA-A4D5-8B83A180F970}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5BCE2F7F-7A36-4ACA-A4D5-8B83A180F970}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5BCE2F7F-7A36-4ACA-A4D5-8B83A180F970}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5BCE2F7F-7A36-4ACA-A4D5-8B83A180F970}.Release|Any CPU.Build.0 = Release|Any CPU
+		{404BAF66-C7C9-4D72-81C8-A788970CF1AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{404BAF66-C7C9-4D72-81C8-A788970CF1AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{404BAF66-C7C9-4D72-81C8-A788970CF1AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{404BAF66-C7C9-4D72-81C8-A788970CF1AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C242F2C9-F492-4F65-9645-DE9FDE70D3B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C242F2C9-F492-4F65-9645-DE9FDE70D3B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C242F2C9-F492-4F65-9645-DE9FDE70D3B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C242F2C9-F492-4F65-9645-DE9FDE70D3B2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
