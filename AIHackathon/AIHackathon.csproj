@@ -9,11 +9,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="config.json" />
     <None Remove="Raw\GetAccuracy.py" />
     <None Remove="Raw\HelpInfo.txt" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Raw\GetAccuracy.py">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
