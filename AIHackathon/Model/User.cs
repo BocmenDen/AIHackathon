@@ -7,12 +7,14 @@ namespace AIHackathon.Model
         public bool IsStarted { get; set; }
         public int? CommandId { get; set; } = null;
         public bool IsAdmin { get; set; } = false;
+        public string Name { get; set; } = null!;
 
-        public User(int id, bool isStarted, int commandId, bool isAdmin) : base(id)
+        public User(int id, bool isStarted, int commandId, bool isAdmin, string name) : base(id)
         {
             IsStarted=isStarted;
             CommandId=commandId;
             IsAdmin=isAdmin;
+            Name=name;
         }
 
         public User() { }

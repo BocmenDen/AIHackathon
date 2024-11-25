@@ -17,6 +17,8 @@ namespace AIHackathon
     public class BotHandle(ILogger logger, ContextBot<User, DataBase> bot, IConfiguration configuration)
     {
         private const string KeyInsertId = "Id";
+        private const string KeyLinkSurvey = "bot_linkSurvey";
+
         private const string KeyCommandGetKeyboard = "bot_commandKeyboard";
         private const string KeyHelpMessage = "bot_helpInfoPath";
 
@@ -25,12 +27,13 @@ namespace AIHackathon
         [
             "Привет! 👋 Я помогу тебе проверить себя! 🚀",
             "\nВот что нужно сделать:",
-            $"\n1️⃣Заполни анкету регистрации по этой ссылке: https://github.com/BocmenDen ➡️ и укажи свой ID: [{KeyInsertId}]",
+            $"\n1️⃣Заполни анкету регистрации по этой [ссылке]({KeyLinkSurvey}) ➡️ и укажи свой ID: [{KeyInsertId}]",
             "2️⃣ Дождись сообщения от бота об открытии доступа. ✉️",
             "3️⃣ Отправь свою обученную модель для оценки. 🤖",
             "4️⃣ Следи за результатами своей команды!\n🏆"
         ];
         private readonly static ButtonsSend Commands = new([["Рейтинг", "To CSV"], ["Информация", "Код оценивания"]]);
+        private readonly string _linkSurvey = configuration[KeyLinkSurvey]??throw new Exception("Нет данных о ссылке на опрос");
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
         public static int Id => SharedUtils.CalculeteID<BotHandle>();
@@ -132,7 +135,7 @@ namespace AIHackathon
                     {
                         if (btn.Column == 0) // Info
                         {
-                            await updateData.Send(_helpInfoText);
+                            await updateData.Send(new SendingClient() { Message = _helpInfoText }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
                         }
                         else // Code
                         {
@@ -151,9 +154,10 @@ namespace AIHackathon
             if (!(updateData.User.IsStarted || updateData.User.IsAdmin))
             {
                 SendingClient sendingClient = string.Empty;
+                sendingClient.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown);
                 foreach (var message in HelloMessage)
                 {
-                    sendingClient.Message += message.Replace(KeyInsertId, updateData.User.Id.ToString()) + "\n";
+                    sendingClient.Message += message.Replace(KeyLinkSurvey, _linkSurvey).Replace(KeyInsertId, updateData.User.Id.ToString()) + "\n";
                     await updateData.Send(sendingClient);
                     Thread.Sleep(WaitStartMessage);
                 }
@@ -167,13 +171,14 @@ namespace AIHackathon
             SendingClient send = string.Empty;
             using var streamFile = new StreamReader(await updateData.Medias![0].GetStream());
             string file = streamFile.ReadToEnd();
-            var matrix = file.Split("\n").Select(x => x.Replace("\r", "").Split(',').Select(d => d.Trim()).ToArray());
+            var matrix = file.Split("\n").Select(x => x.Replace("\r", "").Replace(',', ';').Split(';').Select(d => d.Trim()).ToArray());
             var db = _bot.GetService<DataBase>();
             var tgClient = _bot.GetService<TgClient<User, DataBase>>();
             foreach (var line in matrix)
             {
-                if (line.Length != 2 || !int.TryParse(line[0], out int id)) continue;
-                string commandName = line[1];
+                if (line.Length < 3 || !int.TryParse(line[0], out int id)) continue;
+                string commandName = line[2];
+                string userName = line[1];
                 Command? command = db.Commands.AsNoTracking().FirstOrDefault(x => x.Name == commandName);
                 if (command == null)
                 {
@@ -194,6 +199,7 @@ namespace AIHackathon
                 }
                 var oldIdComman = user.CommandId;
                 user.CommandId = command.CommandId;
+                user.Name = userName;
                 db.Users.Update(user);
                 db.SaveChanges();
                 user.IsStarted = true;
