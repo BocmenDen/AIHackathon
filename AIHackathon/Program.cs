@@ -15,11 +15,12 @@ namespace AIHackathon
         private readonly static ContextBot<User, DataBase> _bot = new();
         private static string _connectText = null!;
 
-        private static void Main()
+        private static void Main(string[] args)
         {
+            string configPath = args!= null && args.Length == 1 ? args[0] : "./config.json";
             _bot.Init(
                 dbBuild => dbBuild.UseSqlite(_connectText),
-                configuration => configuration.AddUserSecrets(Assembly.GetExecutingAssembly()),
+                configuration => configuration.AddJsonFile(configPath),
                 servicesDetect: [Assembly.GetAssembly(typeof(Program))!, Assembly.GetAssembly(typeof(TgClient))!]
             );
 
