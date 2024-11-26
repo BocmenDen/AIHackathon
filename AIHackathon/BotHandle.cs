@@ -22,6 +22,8 @@ namespace AIHackathon
         private const string KeyCommandGetKeyboard = "bot_commandKeyboard";
         private const string KeyHelpMessage = "bot_helpInfoPath";
 
+        public const string SendAllCommand = "/sendAll";
+
         private readonly int WaitStartMessage = 1000;
         private readonly static string[] HelloMessage =
         [
@@ -84,6 +86,13 @@ namespace AIHackathon
                 updateData.Medias![0].Type == ".csv")
                 {
                     await ApplayCommands(updateData);
+                }else if (updateData.User.IsAdmin &&
+                        updateData.ReceptionType == ReceptionType.Message &&
+                        updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    string message = updateData.Message.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Replace("<code>", "```");
+                    await SendAllUsers(updateData, message);
+
                 }
                 else if (updateData.ReceptionType.HasFlag(ReceptionType.Media))
                 {
@@ -111,7 +120,7 @@ namespace AIHackathon
                             var text = RatingCSVTable(predict);
                             MemoryStream stream = new();
                             StreamWriter writer = new(stream, Encoding.UTF8);
-                            writer.WriteLine("UserId;CommandId;CommandName;MetricId;DateTime;Library;Accuracy;PathModel;"); // Лень оптимизировать
+                            writer.WriteLine("UserId;UserName;UserNickname;CommandId;CommandName;MetricId;DateTime;Library;Accuracy;PathModel;"); // Лень оптимизировать
                             writer.Write(text); // Лень оптимизировать
                             writer.Flush();
                             MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
@@ -160,6 +169,13 @@ namespace AIHackathon
                     sendingClient.Message += message.Replace(KeyLinkSurvey, _linkSurvey).Replace(KeyInsertId, updateData.User.Id.ToString()) + "\n";
                     await updateData.Send(sendingClient);
                     Thread.Sleep(WaitStartMessage);
+                }
+                if (updateData.OriginalMessage is Telegram.Bot.Types.Update up && !string.IsNullOrWhiteSpace(up.Message?.From?.Username))
+                {
+                    updateData.User.Nickname = up.Message.From.Username;
+                    var db = _bot.GetService<DataBase>();
+                    db.Users.Update(updateData.User);
+                    db.SaveChanges();
                 }
                 return true;
             }
@@ -269,10 +285,25 @@ namespace AIHackathon
                                               select new
                                               {
                                                   commandId = c.CommandId,
-                                                  line = $"{u.Id};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
+                                                  line = $"{u.Id};{u.Name};{u.Nickname};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
                                               }
             ).AsNoTracking().AsEnumerable().Where(x => predict(x.commandId)).Select(x => x.line));
             return fullInfo;
+        }
+
+        private async Task SendAllUsers(ReceptionClient<User> updateData, string message)
+        {
+            var db = _bot.GetService<DataBase>();
+            var tgClient = _bot.GetService<TgClient<User, DataBase>>();
+            foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking())
+            {
+                if (tgUser.User.IsAdmin) continue;
+                await tgClient.Send(tgUser, new SendingClient()
+                {
+                    Message = $"✉️ Сообщение от организаторов хакатона:\n\n{message}",
+                    Keyboard = Commands
+                }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+            }
         }
     }
 }
