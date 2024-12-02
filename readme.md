@@ -33,6 +33,7 @@
   "pythonSplitArgument": "<split>",
   "pythonPathExe": "python",
   "bot_commandKeyboard": "keyboard",
+  "bot_isFilterUsers":  false,
 
   "tg_token": "ТОКЕН TELEGRAM БОТА",
   "DBPath": "ПУТЬ КУДА СОХРАНЯТЬ БД",
@@ -46,6 +47,7 @@
 * "DBPath" на путь к базе данных.
 * "pythonPathDBModel" на путь к файлу с данными для прогнозирования.
 * "modelsPathStorage" на путь к папке для хранения моделей участников.
+* "bot_isFilterUsers" позволяет игнорировать пользователей не зарегестрированных в системе.
 
 
 ## Управление пользователями

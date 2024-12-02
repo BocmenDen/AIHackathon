@@ -16,15 +16,15 @@ namespace AIHackathon
     [Service]
     public class BotHandle(ILogger logger, ContextBot<User, DataBase> bot, IConfiguration configuration)
     {
+        public static int Id => SharedUtils.CalculeteID<BotHandle>();
         private const string KeyInsertId = "Id";
         private const string KeyLinkSurvey = "bot_linkSurvey";
-
         private const string KeyCommandGetKeyboard = "bot_commandKeyboard";
         private const string KeyHelpMessage = "bot_helpInfoPath";
+        private const string KeyIsFilterUsers = "bot_isFilterUsers";
 
         public const string SendAllCommand = "/sendAll";
-
-        private readonly int WaitStartMessage = 1000;
+        private const int WaitStartMessage = 1000;
         private readonly static string[] HelloMessage =
         [
             "Привет! 👋 Я помогу тебе проверить себя! 🚀",
@@ -35,23 +35,27 @@ namespace AIHackathon
             "4️⃣ Следи за результатами своей команды!\n🏆"
         ];
         private readonly static ButtonsSend Commands = new([["Рейтинг", "To CSV"], ["Информация", "Код оценивания"]]);
+
+        private readonly bool _isFilterUsers = configuration.GetValue<bool?>(KeyIsFilterUsers) ?? false;
         private readonly string _linkSurvey = configuration[KeyLinkSurvey]??throw new Exception("Нет данных о ссылке на опрос");
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
-        public static int Id => SharedUtils.CalculeteID<BotHandle>();
 
-        private readonly ConcurrentList<int> _usersWait = [];
+        private readonly Dictionary<int, bool> _usersWait = [];
         private readonly ILogger _logger = logger.CacheSender(Id)??throw new ArgumentNullException(nameof(logger));
         private readonly ContextBot<User, DataBase> _bot = bot??throw new ArgumentNullException(nameof(bot));
 
         private async Task HandleCommandAbstractyon(ReceptionClient<User> updateData, Func<Task> handle)
         {
-            if (!updateData.User.IsAdmin && _usersWait.Contains(updateData.User.Id))
+            if (!updateData.User.IsAdmin && _usersWait.TryGetValue(updateData.User.Id, out bool isSend))
             {
-                await updateData.Send("Ого! 😮 Кажется, я немного перегружен! 😅 Попробуйте отправить сообщение чуть позже. Сейчас я обрабатываю другое. 🙏 Только одно сообщение за раз! ☝️");
+                if (!isSend) {
+                    await updateData.Send("Ого! 😮 Кажется, я немного перегружен! 😅 Попробуйте отправить сообщение чуть позже. Сейчас я обрабатываю другое. 🙏 Только одно сообщение за раз! ☝️");
+                    _usersWait[updateData.User.Id] = true;
+                }
                 return;
             }
-            _usersWait.Add(updateData.User.Id);
+            _usersWait.Add(updateData.User.Id, false);
             try
             {
                 await handle();
@@ -162,6 +166,7 @@ namespace AIHackathon
         {
             if (!(updateData.User.IsStarted || updateData.User.IsAdmin))
             {
+                if (_isFilterUsers) return true;
                 SendingClient sendingClient = string.Empty;
                 sendingClient.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown);
                 foreach (var message in HelloMessage)

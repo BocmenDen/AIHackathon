@@ -11,7 +11,7 @@ namespace AIHackathon
 {
     internal class Program
     {
-        private const string KeyPathDB = "DBPath";
+        private const string KeyConnectionDB = "connectionDB";
         private readonly static ContextBot<User, DataBase> _bot = new();
         private static string _connectText = null!;
 
@@ -19,14 +19,14 @@ namespace AIHackathon
         {
             string configPath = args!= null && args.Length == 1 ? args[0] : "./config.json";
             _bot.Init(
-                dbBuild => dbBuild.UseSqlite(_connectText),
+                dbBuild => dbBuild.UseNpgsql(_connectText),
                 configuration => configuration.AddJsonFile(configPath),
                 servicesDetect: [Assembly.GetAssembly(typeof(Program))!, Assembly.GetAssembly(typeof(TgClient))!]
             );
 
             var config = _bot.GetService<IConfiguration>();
 
-            _connectText = $"Data Source={config[KeyPathDB]}";
+            _connectText = config[KeyConnectionDB]??throw new Exception("Отсутствуют данные подключения");
 
             TgClient<User, DataBase> clientBot = _bot.GetService<TgClient<User, DataBase>>();
             BotHandle botHandle = _bot.GetService<BotHandle>();
