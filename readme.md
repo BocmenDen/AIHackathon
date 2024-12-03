@@ -29,16 +29,24 @@
 {
   "bot_helpInfoPath": "./Raw/HelpInfo.txt",
   "pythonNameFunction": "getAccuracyScore",
-  "pythonPathScript": "./Raw/GetAccuracy.py",
-  "pythonSplitArgument": "<split>",
+  "pythonPathScript": "./Raw/GetMetrics.py",
+  "pythonDBTarget": "СТОЛБЕЦ ДЛЯ КОТОРОГО СТРОЯТСЯ PREDICT",
   "pythonPathExe": "python",
   "bot_commandKeyboard": "keyboard",
+  "bot_linkSurvey": "ССЫЛКА НА ОПРОС-РЕГИСТРАЦИЮ",
   "bot_isFilterUsers":  false,
 
   "tg_token": "ТОКЕН TELEGRAM БОТА",
   "DBPath": "ПУТЬ КУДА СОХРАНЯТЬ БД",
   "pythonPathDBModel": "ПУТЬ К ФАЙЛУ С ДАННЫМИ ДЛЯ ПРОГНОЗИРОВАНИЯ",
   "modelsPathStorage": "ПУТЬ К ПАПКЕ КУДА СОХРАНЯТЬ МОДЕЛИ УЧАСТНИКОВ"
+
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.EntityFrameworkCore": "None"
+    }
+  }
 }
 ```
 Замените:
@@ -48,6 +56,7 @@
 * "pythonPathDBModel" на путь к файлу с данными для прогнозирования.
 * "modelsPathStorage" на путь к папке для хранения моделей участников.
 * "bot_isFilterUsers" позволяет игнорировать пользователей не зарегестрированных в системе.
+* "Logging" позволяет выключить логирование Entity Framework.
 
 
 ## Управление пользователями

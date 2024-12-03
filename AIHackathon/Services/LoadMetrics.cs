@@ -1,5 +1,6 @@
 ﻿using AIHackathon.Model;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using OneBot;
 using OneBot.Attributes;
 using OneBot.Models;
@@ -14,13 +15,12 @@ namespace AIHackathon.Services
         public const string KeyPathPython = "pythonPathExe";
         public const string KeyPathScript = "pythonPathScript";
         public const string KeyPathDBModel = "pythonPathDBModel";
-        public const string KeyFunctionName = "pythonNameFunction";
-        public const string KeySplitArgument = "pythonSplitArgument";
+        public const string KeyDBTarget = "pythonDBTarget";
 
         private readonly string _pathPython = configuration[KeyPathPython] ?? throw new Exception("Отсутствуют данные о расположении Python");
         private readonly string _pathScript = configuration[KeyPathScript] ?? throw new Exception("Отсутствуют данные о расположении скрипта");
         private readonly string _pathDBModel = configuration[KeyPathDBModel] ?? throw new Exception("Отсутствуют данные о расположении модели");
-        private readonly string _splitArgs = configuration[KeySplitArgument] ?? throw new Exception("Отсутствуют данные о разбиении полученных данных на аргументы");
+        private readonly string _pathDBTarget = configuration[KeyDBTarget] ?? throw new Exception("Отсутствуют данные о целевом столбце");
 
         private readonly string _directoryFiles = configuration[KeyDirectory] ?? throw new Exception("Нед данных о расположении хранилища моделей");
         private readonly ContextBot<User, DataBase> _contextBot = contextBot ?? throw new ArgumentNullException(nameof(contextBot));
@@ -54,33 +54,37 @@ namespace AIHackathon.Services
                 Thread.Sleep(500);
             }
             var metric = await metricTask;
-            if (metric.IsSuccess)
-            {
-                sendingClient.Message = "Сохраняю результаты... 💾 Почти готово! ⏳";
-                await updateData.Send(sendingClient);
-                var db = _contextBot.GetService<DataBase>();
-                db.Metrics.Add(new MetricsUser(updateData.User.Id, metric.Accuracy, metric.Library!, subPath));
-                await db.SaveChangesAsync();
-            }
-            else
-            {
-                File.Delete(pathFile);
-            }
+            metric.UserId = updateData.User.Id;
+            metric.PathFile = subPath;
+            sendingClient.Message = "Сохраняю результаты... 💾 Почти готово! ⏳";
+            await updateData.Send(sendingClient);
+            var db = _contextBot.GetService<DataBase>();
+            db.Metrics.Add(metric);
+            db.SaveChanges();
 
             sendingClient.Message = metric.ToString();
             await updateData.Send(sendingClient);
         }
 
-        private async Task<MetricsModel> Load(string pathModel)
+        private async Task<MetricsUser> Load(string pathModel)
         {
             using Process process = new();
             process.StartInfo.FileName = _pathPython;
             process.StartInfo.Environment["TF_ENABLE_ONEDNN_OPTS"] = "0";
-            process.StartInfo.Arguments = $"\"{_pathScript}\" {pathModel} {_pathDBModel}";
+            process.StartInfo.Arguments = $"\"{_pathScript}\" {pathModel} {_pathDBModel} {_pathDBTarget}";
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.CreateNoWindow = true;
+
+
+            MetricsUser createError(string error)
+            {
+                return new MetricsUser()
+                {
+                    Error = error
+                };
+            }
 
             try
             {
@@ -89,33 +93,17 @@ namespace AIHackathon.Services
                 string error = await process.StandardError.ReadToEndAsync();
                 await process.WaitForExitAsync();
                 if (string.IsNullOrWhiteSpace(output) && !string.IsNullOrEmpty(error))
-                    throw new Exception(error);
-                string[] args = output.Replace("\n", "").Replace("\r", "").Replace('.', ',').Split(_splitArgs);
-                if (args.Length != 2 || !double.TryParse(args[1], out double accuracy))
-                    throw new Exception("Не удалось обработать полученные данные оценки модели, возможно не удалось определить тип модели");
-                return new MetricsModel(args[0].Trim(), accuracy);
+                    return createError(error);
+
+                var metric =  JsonConvert.DeserializeObject<MetricsUser>(output);
+                if(metric == null)
+                    return createError("Не удалось распарсить ответ от скрипта получения метрик");
+                return metric;
             }
             catch (Exception ex)
             {
-                return new(ex);
+                return createError(ex.Message);
             }
-        }
-
-        private struct MetricsModel
-        {
-            public double Accuracy;
-            public string? Library;
-            public Exception? Exception;
-            public readonly bool IsSuccess => Exception == null && Library != null;
-
-            public MetricsModel(Exception ex) => Exception = ex;
-            public MetricsModel(string nameLibrary, double accuracy)
-            {
-                Accuracy=accuracy;
-                Library=nameLibrary;
-            }
-
-            public override readonly string ToString() => IsSuccess ? $"Результат оценки модели из {Library}: 🎯 Точность: {Accuracy}! " : $"Ой! 💥 Произошла ошибка: {Exception!.Message} ";
         }
     }
 }

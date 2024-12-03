@@ -34,7 +34,7 @@ namespace AIHackathon
             "3️⃣ Отправь свою обученную модель для оценки. 🤖",
             "4️⃣ Следи за результатами своей команды!\n🏆"
         ];
-        private readonly static ButtonsSend Commands = new([["Рейтинг", "To CSV"], ["Информация", "Код оценивания"]]);
+        private readonly static ButtonsSend Commands = new([["Рейтинг", "Export to CSV"], ["Информация", "Код оценивания"]]);
 
         private readonly bool _isFilterUsers = configuration.GetValue<bool?>(KeyIsFilterUsers) ?? false;
         private readonly string _linkSurvey = configuration[KeyLinkSurvey]??throw new Exception("Нет данных о ссылке на опрос");
@@ -95,10 +95,10 @@ namespace AIHackathon
                         updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     string message = updateData.Message.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Replace("<code>", "```");
-                    await SendAllUsers(updateData, message);
+                    await SendAllUsers(message);
 
                 }
-                else if (updateData.ReceptionType.HasFlag(ReceptionType.Media))
+                else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
                 {
                     await _bot.GetService<LoadMetrics>().Run(updateData);
                 }
@@ -121,11 +121,9 @@ namespace AIHackathon
                         {
                             Func<int, bool> predict = _ => true;
                             if (!updateData.User.IsAdmin) predict = (command) => command == updateData.User.CommandId;
-                            var text = RatingCSVTable(predict);
                             MemoryStream stream = new();
                             StreamWriter writer = new(stream, Encoding.UTF8);
-                            writer.WriteLine("UserId;UserName;UserNickname;CommandId;CommandName;MetricId;DateTime;Library;Accuracy;PathModel;"); // Лень оптимизировать
-                            writer.Write(text); // Лень оптимизировать
+                            GetCSVTable(predict, writer.WriteLine);
                             writer.Flush();
                             MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
                             {
@@ -204,9 +202,10 @@ namespace AIHackathon
                 if (command == null)
                 {
                     command = new Command(commandName);
-                    command = db.CreateElementAndReload(command, db.Commands);
+                    db.Commands.Add(command);
+                    db.SaveChanges();
                 }
-                User? user = db.GetUser(id);
+                User? user = db.Users.Find(id);
                 if (user == null)
                 {
                     send.Message += $"Упс! 😕 Похоже, пользователя с ID [{id}] нет в базе данных. 🤔 Не могу обновить данные, которых нет. 😞 Надо проверить, всё ли в порядке.\n";
@@ -224,7 +223,7 @@ namespace AIHackathon
                 db.Users.Update(user);
                 db.SaveChanges();
                 user.IsStarted = true;
-                TgUser<User> tgUser = db.TgUsers.FirstOrDefault(x => x.User.Id == id)!;
+                TgUser<User> tgUser = db.TgUsers.AsNoTracking().FirstOrDefault(x => x.User.Id == id)!;
                 if (oldIdComman != user.CommandId)
                 {
                     await tgClient.Send(tgUser, new SendingClient()
@@ -266,13 +265,13 @@ namespace AIHackathon
                                {
                                    commandName = g.Key.Name,
                                    commandId = g.Key.CommandId,
-                                   accuracy = g.Max(x => x.m.Accuracy),
+                                   metric = g.Max(x => x.m.ROC_AUC),
                                }
-                       ).OrderBy(x => x.accuracy);
+                       ).OrderBy(x => x.metric);
 
             foreach (var command in commandInfo)
             {
-                sending += $"[{rating++}] {command.commandName} -> Accuracy {command.accuracy}";
+                sending += $"[{rating++}] {command.commandName} -> ROC AUC {command.metric}";
                 if (command.commandId == updateData.User.CommandId)
                     sending += "📍";
                 sending+="\n";
@@ -281,22 +280,25 @@ namespace AIHackathon
             await updateData.Send(sending);
         }
 
-        private string RatingCSVTable(Func<int, bool> predict)
+        private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine)
         {
             var db = _bot.GetService<DataBase>();
-            var fullInfo = string.Join("\n", (from u in db.Users
-                                              join c in db.Commands on u.CommandId equals c.CommandId
-                                              join m in db.Metrics on u.Id equals m.UserId
-                                              select new
-                                              {
-                                                  commandId = c.CommandId,
-                                                  line = $"{u.Id};{u.Name};{u.Nickname};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
-                                              }
-            ).AsNoTracking().AsEnumerable().Where(x => predict(x.commandId)).Select(x => x.line));
-            return fullInfo;
+            var lines = (from u in db.Users
+                         join c in db.Commands on u.CommandId equals c.CommandId
+                         join m in db.Metrics on u.Id equals m.UserId
+                         where m.Error == null || m.Error == string.Empty
+                         select new
+                         {
+                             commandId = c.CommandId,
+                             line = $"{u.Id};{u.Name};{u.Nickname};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
+                         }
+            ).AsNoTracking().AsEnumerable().Where(x => predict(x.commandId)).Select(x => x.line);
+            writeLine("UserId;UserName;UserNickname;CommandId;CommandName;MetricId;DateTime;Library;MetricValue;PathModel;");
+            foreach (var line in lines)
+                writeLine(line);
         }
 
-        private async Task SendAllUsers(ReceptionClient<User> updateData, string message)
+        private async Task SendAllUsers(string message)
         {
             var db = _bot.GetService<DataBase>();
             var tgClient = _bot.GetService<TgClient<User, DataBase>>();

@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <None Remove="config.json" />
-    <None Remove="Raw\GetAccuracy.py" />
     <None Remove="Raw\HelpInfo.txt" />
   </ItemGroup>
 
@@ -18,7 +17,7 @@
     <Content Include="config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Raw\GetAccuracy.py">
+    <Content Include="Raw\GetMetrics.py">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Raw\HelpInfo.txt">
@@ -27,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.1" />
   </ItemGroup>
 
