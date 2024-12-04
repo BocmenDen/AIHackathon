@@ -229,7 +229,7 @@ namespace AIHackathon
                 {
                     await tgClient.Send(tgUser, new SendingClient()
                     {
-                        Message = $"Ого! 🤩 Меня добавили в базу данных бота! 🥳 Теперь я официально часть системы! 🤖\n\n{_helpInfoText}",
+                        Message = $"Ого! 🤩 Меня добавили в базу данных бота! 🥳 Теперь я официально часть системы! 🤖\n\n{_helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString())}",
                         Keyboard = Commands
                     });
                 }
