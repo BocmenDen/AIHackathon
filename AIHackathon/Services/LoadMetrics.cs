@@ -92,8 +92,8 @@ namespace AIHackathon.Services
                 string output = await process.StandardOutput.ReadToEndAsync();
                 string error = await process.StandardError.ReadToEndAsync();
                 await process.WaitForExitAsync();
-                if (string.IsNullOrWhiteSpace(output) && !string.IsNullOrEmpty(error))
-                    return createError(error);
+                //if (string.IsNullOrWhiteSpace(output) && !string.IsNullOrEmpty(error))
+                //    return createError(error);
 
                 var metric =  JsonConvert.DeserializeObject<MetricsUser>(output);
                 if(metric == null)
