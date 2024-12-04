@@ -14,9 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="config.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Raw\GetMetrics.py">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
