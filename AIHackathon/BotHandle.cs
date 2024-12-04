@@ -9,7 +9,9 @@ using OneBot.Interfaces;
 using OneBot.Models;
 using OneBot.Tg;
 using OneBot.Utils;
+using System.Collections.Concurrent;
 using System.Text;
+using Telegram.Bot.Extensions;
 
 namespace AIHackathon
 {
@@ -17,7 +19,7 @@ namespace AIHackathon
     public class BotHandle(ILogger logger, ContextBot<User, DataBase> bot, IConfiguration configuration)
     {
         public static int Id => SharedUtils.CalculeteID<BotHandle>();
-        private const string KeyInsertId = "Id";
+        private const string KeyInsertId = "{InsertIdUser}";
         private const string KeyLinkSurvey = "bot_linkSurvey";
         private const string KeyCommandGetKeyboard = "bot_commandKeyboard";
         private const string KeyHelpMessage = "bot_helpInfoPath";
@@ -41,7 +43,7 @@ namespace AIHackathon
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
 
-        private readonly Dictionary<int, bool> _usersWait = [];
+        private readonly ConcurrentDictionary<int, bool> _usersWait = [];
         private readonly ILogger _logger = logger.CacheSender(Id)??throw new ArgumentNullException(nameof(logger));
         private readonly ContextBot<User, DataBase> _bot = bot??throw new ArgumentNullException(nameof(bot));
 
@@ -51,11 +53,11 @@ namespace AIHackathon
             {
                 if (!isSend) {
                     await updateData.Send("Ого! 😮 Кажется, я немного перегружен! 😅 Попробуйте отправить сообщение чуть позже. Сейчас я обрабатываю другое. 🙏 Только одно сообщение за раз! ☝️");
-                    _usersWait[updateData.User.Id] = true;
+                    _usersWait.TryUpdate(updateData.User.Id, true, false);
                 }
                 return;
             }
-            _usersWait.Add(updateData.User.Id, false);
+            _usersWait.TryAdd(updateData.User.Id, false);
             try
             {
                 await handle();
@@ -68,7 +70,7 @@ namespace AIHackathon
             }
             finally
             {
-                _usersWait.Remove(updateData.User.Id);
+                _usersWait.TryRemove(updateData.User.Id, out bool _);
             }
         }
 
@@ -94,9 +96,8 @@ namespace AIHackathon
                         updateData.ReceptionType == ReceptionType.Message &&
                         updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
                 {
-                    string message = updateData.Message.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Replace("<code>", "```");
+                    string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase);
                     await SendAllUsers(message);
-
                 }
                 else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
                 {
@@ -146,7 +147,7 @@ namespace AIHackathon
                     {
                         if (btn.Column == 0) // Info
                         {
-                            await updateData.Send(new SendingClient() { Message = _helpInfoText }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                            await updateData.Send(new SendingClient() { Message = _helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString()) }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
                         }
                         else // Code
                         {
