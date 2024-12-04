@@ -219,7 +219,7 @@ namespace AIHackathon
                     await updateData.Send(send);
                 }
                 var oldIdComman = user.CommandId;
-                user.CommandId = command.CommandId;
+                user.CommandId = command.Id;
                 user.Name = userName;
                 db.Users.Update(user);
                 db.SaveChanges();
@@ -259,13 +259,13 @@ namespace AIHackathon
             int rating = 1;
 
             var commandInfo = (from u in db.Users
-                               join c in db.Commands on u.CommandId equals c.CommandId
+                               join c in db.Commands on u.CommandId equals c.Id
                                join m in db.Metrics on u.Id equals m.UserId
-                               group new { c, m } by new { c.Name, c.CommandId } into g
+                               group new { c, m } by new { c.Name, c.Id } into g
                                select new
                                {
                                    commandName = g.Key.Name,
-                                   commandId = g.Key.CommandId,
+                                   commandId = g.Key.Id,
                                    metric = g.Max(x => x.m.ROC_AUC),
                                }
                        ).OrderBy(x => x.metric);
@@ -285,12 +285,12 @@ namespace AIHackathon
         {
             var db = _bot.GetService<DataBase>();
             var lines = (from u in db.Users
-                         join c in db.Commands on u.CommandId equals c.CommandId
+                         join c in db.Commands on u.CommandId equals c.Id
                          join m in db.Metrics on u.Id equals m.UserId
                          where m.Error == null || m.Error == string.Empty
                          select new
                          {
-                             commandId = c.CommandId,
+                             commandId = c.Id,
                              line = $"{u.Id};{u.Name};{u.Nickname};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
                          }
             ).AsNoTracking().AsEnumerable().Where(x => predict(x.commandId)).Select(x => x.line);

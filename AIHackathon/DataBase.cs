@@ -24,7 +24,7 @@ namespace AIHackathon
             base.OnModelCreating(modelBuilder);
             modelBuilder.ConfigurateDBTg<User>();
             modelBuilder.Entity<Command>()
-                .Property(p => p.CommandId)
+                .Property(p => p.Id)
                 .ValueGeneratedOnAdd();
             modelBuilder.Entity<MetricsUser>()
                 .Property(p => p.MetricId)
