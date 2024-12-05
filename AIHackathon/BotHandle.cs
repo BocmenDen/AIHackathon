@@ -88,16 +88,17 @@ namespace AIHackathon
                     await SendKeyboard(updateData);
                 }
                 else if (updateData.User.IsAdmin &&
+                        updateData.ReceptionType.HasFlag(ReceptionType.Message) &&
+                        updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
+                    await SendAllUsers(updateData, message);
+                }
+                else if (updateData.User.IsAdmin &&
                 updateData.ReceptionType.HasFlag(ReceptionType.Media) &&
                 updateData.Medias![0].Type == ".csv")
                 {
                     await ApplayCommands(updateData);
-                }else if (updateData.User.IsAdmin &&
-                        updateData.ReceptionType == ReceptionType.Message &&
-                        updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase);
-                    await SendAllUsers(message);
                 }
                 else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
                 {
@@ -218,6 +219,12 @@ namespace AIHackathon
                     send.Message += $"🎉 Ура! 🎉 К команде {commandName} присоединился новый участник — пользователь [{id}]!\n";
                     await updateData.Send(send);
                 }
+                if (user.IsAdmin)
+                {
+                    send.Message += $"⚠️ Администратор не может принять роль участника [{id}]. Пожалуйста, проверьте настройки. 🤔\n";
+                    await updateData.Send(send);
+                    continue;
+                }
                 var oldIdComman = user.CommandId;
                 user.CommandId = command.Id;
                 user.Name = userName;
@@ -299,17 +306,18 @@ namespace AIHackathon
                 writeLine(line);
         }
 
-        private async Task SendAllUsers(string message)
+        private async Task SendAllUsers(ReceptionClient<User> reception, string message)
         {
             var db = _bot.GetService<DataBase>();
             var tgClient = _bot.GetService<TgClient<User, DataBase>>();
-            foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking())
+            foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking().Where(x => !x.User.IsAdmin))
             {
                 if (tgUser.User.IsAdmin) continue;
                 await tgClient.Send(tgUser, new SendingClient()
                 {
                     Message = $"✉️ Сообщение от организаторов хакатона:\n\n{message}",
-                    Keyboard = Commands
+                    Keyboard = Commands,
+                    Medias = reception.Medias
                 }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
             }
         }
