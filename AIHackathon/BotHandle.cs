@@ -125,7 +125,7 @@ namespace AIHackathon
                             if (!updateData.User.IsAdmin) predict = (command) => command == updateData.User.CommandId;
                             MemoryStream stream = new();
                             StreamWriter writer = new(stream, Encoding.UTF8);
-                            GetCSVTable(predict, writer.WriteLine);
+                            GetCSVTable(predict, writer.WriteLine, updateData.User.IsAdmin);
                             writer.Flush();
                             MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
                             {
@@ -268,6 +268,7 @@ namespace AIHackathon
             var commandInfo = (from u in db.Users
                                join c in db.Commands on u.CommandId equals c.Id
                                join m in db.Metrics on u.Id equals m.UserId
+                               where !EF.Functions.Like(u.Name, "%~%")
                                group new { c, m } by new { c.Name, c.Id } into g
                                select new
                                {
@@ -288,13 +289,14 @@ namespace AIHackathon
             await updateData.Send(sending);
         }
 
-        private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine)
+        private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine, bool isIgnoreTestUser)
         {
             var db = _bot.GetService<DataBase>();
             var lines = (from u in db.Users
                          join c in db.Commands on u.CommandId equals c.Id
                          join m in db.Metrics on u.Id equals m.UserId
-                         where m.Error == null || m.Error == string.Empty
+                         where (m.Error == null || m.Error == string.Empty)
+                         && (!isIgnoreTestUser || !EF.Functions.Like(u.Name, "%~%"))
                          select new
                          {
                              commandId = c.Id,
