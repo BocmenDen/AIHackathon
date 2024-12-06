@@ -49,17 +49,18 @@ namespace AIHackathon
 
         private async Task HandleCommandAbstractyon(ReceptionClient<User> updateData, Func<Task> handle)
         {
-            if (!updateData.User.IsAdmin && _usersWait.TryGetValue(updateData.User.Id, out bool isSend))
-            {
-                if (!isSend) {
-                    await updateData.Send("Ого! 😮 Кажется, я немного перегружен! 😅 Попробуйте отправить сообщение чуть позже. Сейчас я обрабатываю другое. 🙏 Только одно сообщение за раз! ☝️");
-                    _usersWait.TryUpdate(updateData.User.Id, true, false);
-                }
-                return;
-            }
-            _usersWait.TryAdd(updateData.User.Id, false);
             try
             {
+                if (!updateData.User.IsAdmin && _usersWait.TryGetValue(updateData.User.Id, out bool isSend))
+                {
+                    if (!isSend)
+                    {
+                        await updateData.Send("Ого! 😮 Кажется, я немного перегружен! 😅 Попробуйте отправить сообщение чуть позже. Сейчас я обрабатываю другое. 🙏 Только одно сообщение за раз! ☝️");
+                        _usersWait.TryUpdate(updateData.User.Id, true, false);
+                    }
+                    return;
+                }
+                _usersWait.TryAdd(updateData.User.Id, false);
                 await handle();
             }
             catch (Exception ex)
