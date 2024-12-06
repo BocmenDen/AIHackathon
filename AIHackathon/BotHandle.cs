@@ -2,6 +2,7 @@
 using AIHackathon.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using OneBot;
 using OneBot.Attributes;
 using OneBot.Extensions;
@@ -65,7 +66,7 @@ namespace AIHackathon
             }
             catch (Exception ex)
             {
-                _logger.Error($"Произошла ошибка при обработке команды[{updateData.ReceptionType}] пользователя[{updateData.User.Id}]: {ex}");
+                _logger.Error($"Произошла ошибка при обработке команды[{JsonConvert.SerializeObject(updateData, Formatting.Indented)}] пользователя[{updateData.User.Id}]: {ex}");
                 SendingClient sendingClient = ex.Message;
                 await updateData.Send(sendingClient);
             }
