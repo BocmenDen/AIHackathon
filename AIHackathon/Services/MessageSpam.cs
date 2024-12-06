@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using OneBot.Attributes;
 using OneBot.Models;
 using OneBot.SpamBroker;
-using System;
 
 namespace AIHackathon.Services
 {
@@ -15,10 +14,12 @@ namespace AIHackathon.Services
         private readonly SingleMessageQueue<int, User> _singleMessageFilter;
         private readonly BlackList<User> _blackList;
         private readonly ILogger _logger;
-        private Func<ReceptionClient<User>, Task> _action;
+        private Func<ReceptionClient<User>, Task>? _action;
         private readonly TimeSpan _banTime;
 
+#pragma warning disable IDE0290 // Использовать основной конструктор
         public MessageSpam(
+#pragma warning restore IDE0290 // Использовать основной конструктор
             IConfiguration configuration,
             ILogger<MessageSpam> logger,
             ILogger<SpamBroker<int, User>> loggerSpam,
@@ -54,7 +55,7 @@ namespace AIHackathon.Services
                 (await _singleMessageFilter.CheckMessageSpamStatus(updateData, "Пожалуйста, подождите немного! ✨ Ваше сообщение обрабатывается… ⚙️")).IsSpam()
                 ) return;
             var state = await _spamFilter.CheckMessageSpamStatus(updateData, $"Вы превысели количество сообщений [{_spamFilter.MaxEvent} сообщений] за [{ConvertTimeSpan(_spamFilter.TimeWindow)}], выдан бан на [{ConvertTimeSpan(_banTime)}]");
-            if(state == StateSpam.ForbiddenFirst)
+            if (state == StateSpam.ForbiddenFirst)
                 _blackList.AddBlock(updateData.User, _banTime);
             if (state.IsSpam()) return;
             _singleMessageFilter.RegisterEvent(updateData);
@@ -64,6 +65,7 @@ namespace AIHackathon.Services
 
         private async Task HandleMessage(ReceptionClient<User> updateData)
         {
+            if (_action == null) return;
             try
             {
                 await _action(updateData);
@@ -75,7 +77,7 @@ namespace AIHackathon.Services
             }
         }
 
-        private string ConvertTimeSpan(TimeSpan timeSpan)
+        private static string ConvertTimeSpan(TimeSpan timeSpan)
         {
             string readableTimeSpan = "";
             if (timeSpan.Days > 0)

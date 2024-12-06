@@ -2,8 +2,6 @@
 using AIHackathon.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using OneBot;
 using OneBot.Tg;
 using OneBot.Utils;

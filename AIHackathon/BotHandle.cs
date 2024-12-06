@@ -2,15 +2,10 @@
 using AIHackathon.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using OneBot;
 using OneBot.Attributes;
 using OneBot.Models;
-using OneBot.SpamBroker;
 using OneBot.Tg;
-using OneBot.Utils;
-using System.Collections.Concurrent;
 using System.Text;
 using Telegram.Bot.Extensions;
 
@@ -18,7 +13,6 @@ namespace AIHackathon
 {
     [Service]
     public class BotHandle(
-        ILogger<BotHandle> logger,
         ContextBot<User, DataBase> bot,
         IConfiguration configuration)
     {
@@ -46,8 +40,6 @@ namespace AIHackathon
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
 
-        private readonly ConcurrentDictionary<int, bool> _usersWait = [];
-        private readonly ILogger? _logger = logger;
         private readonly ContextBot<User, DataBase> _bot = bot??throw new ArgumentNullException(nameof(bot));
 
         public async Task HandleCommand(ReceptionClient<User> updateData)

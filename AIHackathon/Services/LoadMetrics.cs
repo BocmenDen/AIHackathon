@@ -95,8 +95,8 @@ namespace AIHackathon.Services
                 //if (string.IsNullOrWhiteSpace(output) && !string.IsNullOrEmpty(error))
                 //    return createError(error);
 
-                var metric =  JsonConvert.DeserializeObject<MetricsUser>(output);
-                if(metric == null)
+                var metric = JsonConvert.DeserializeObject<MetricsUser>(output);
+                if (metric == null)
                     return createError("Не удалось распарсить ответ от скрипта получения метрик");
                 return metric;
             }
