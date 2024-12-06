@@ -21,7 +21,7 @@ namespace AIHackathon.Services
                     Console.ForegroundColor= ConsoleColor.DarkRed;
                     break;
             }
-            Console.WriteLine($"[{logTypes}]({serviceName}) -> {message}");
+            Console.WriteLine($"[{DateTime.Now}: {logTypes}]({serviceName}) -> {message}");
             Console.ResetColor();
         }
 

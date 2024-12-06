@@ -3,8 +3,10 @@ using AIHackathon.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using OneBot;
+using OneBot.Extensions;
 using OneBot.Interfaces;
 using OneBot.Tg;
+using OneBot.Utils;
 using System.Reflection;
 
 namespace AIHackathon
@@ -33,13 +35,28 @@ namespace AIHackathon
 
             clientBot.RegisterUpdateHadler(botHandle.HandleCommand);
 
-            if (_bot.GetService<ILogger>() is Logger logger)
+            var idThisSender = SharedUtils.CalculeteID<Program>();
+
+            ILogger log = _bot.GetService<ILogger>();
+
+            if (log is Logger logger)
             {
                 logger.RegisterName(clientBot.Id, "TG");
                 logger.RegisterName(BotHandle.Id, "BotHandle");
+                logger.RegisterName(idThisSender, "Program");
             }
 
-            clientBot.Run().Wait();
+        restart:
+            try
+            {
+                clientBot.Run().Wait();
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Произошла глобальная ошибка: {ex}", idThisSender);
+                Thread.Sleep(5000);
+                goto restart;
+            }
         }
     }
 }
