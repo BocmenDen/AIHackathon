@@ -22,5 +22,7 @@ namespace AIHackathon.Model
         public User() { }
 
         public override BaseUser CreateEmpty() => new User();
+
+        public override string ToString() => $"Id: {Id} Nickname: {Nickname} Name: {Name}";
     }
 }

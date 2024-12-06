@@ -2,12 +2,12 @@
 using AIHackathon.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using OneBot;
 using OneBot.Attributes;
-using OneBot.Extensions;
-using OneBot.Interfaces;
 using OneBot.Models;
+using OneBot.SpamBroker;
 using OneBot.Tg;
 using OneBot.Utils;
 using System.Collections.Concurrent;
@@ -17,9 +17,11 @@ using Telegram.Bot.Extensions;
 namespace AIHackathon
 {
     [Service]
-    public class BotHandle(ILogger logger, ContextBot<User, DataBase> bot, IConfiguration configuration)
+    public class BotHandle(
+        ILogger<BotHandle> logger,
+        ContextBot<User, DataBase> bot,
+        IConfiguration configuration)
     {
-        public static int Id => SharedUtils.CalculeteID<BotHandle>();
         private const string KeyInsertId = "{InsertIdUser}";
         private const string KeyLinkSurvey = "bot_linkSurvey";
         private const string KeyCommandGetKeyboard = "bot_commandKeyboard";
@@ -45,123 +47,92 @@ namespace AIHackathon
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
 
         private readonly ConcurrentDictionary<int, bool> _usersWait = [];
-        private readonly ILogger _logger = logger.CacheSender(Id)??throw new ArgumentNullException(nameof(logger));
+        private readonly ILogger? _logger = logger;
         private readonly ContextBot<User, DataBase> _bot = bot??throw new ArgumentNullException(nameof(bot));
 
-        private async Task HandleCommandAbstractyon(ReceptionClient<User> updateData, Func<Task> handle)
+        public async Task HandleCommand(ReceptionClient<User> updateData)
         {
-            try
+            if (await CheckRegister(updateData)) return;
+
+            if (updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
+                updateData.Command == _commandGetKeyboard &&
+                (updateData.User.IsAdmin || updateData.User.IsStarted)
+                )
             {
-                if (!updateData.User.IsAdmin && _usersWait.TryGetValue(updateData.User.Id, out bool isSend))
+                await SendKeyboard(updateData);
+            }
+            else if (updateData.User.IsAdmin &&
+                    updateData.ReceptionType.HasFlag(ReceptionType.Message) &&
+                    updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
+            {
+                string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
+                await SendAllUsers(updateData, message);
+            }
+            else if (updateData.User.IsAdmin &&
+            updateData.ReceptionType.HasFlag(ReceptionType.Media) &&
+            updateData.Medias![0].Type == ".csv")
+            {
+                await ApplayCommands(updateData);
+            }
+            else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
+            {
+                await _bot.GetService<LoadMetrics>().Run(updateData);
+            }
+            else
+            {
+                var btnNull = updateData.Client.GetIndexButton(updateData, Commands);
+                if (btnNull == null)
                 {
-                    if (!isSend)
-                    {
-                        await updateData.Send("Ого! 😮 Кажется, я немного перегружен! 😅 Попробуйте отправить сообщение чуть позже. Сейчас я обрабатываю другое. 🙏 Только одно сообщение за раз! ☝️");
-                        _usersWait.TryUpdate(updateData.User.Id, true, false);
-                    }
+                    await updateData.Send("Извини, 😞 я тебя не понял! 🤔");
                     return;
                 }
-                _usersWait.TryAdd(updateData.User.Id, false);
-                await handle();
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Произошла ошибка при обработке команды[{JsonConvert.SerializeObject(updateData, Formatting.Indented)}] пользователя[{updateData.User.Id}]: {ex}");
-                SendingClient sendingClient = ex.Message;
-                await updateData.Send(sendingClient);
-            }
-            finally
-            {
-                _usersWait.TryRemove(updateData.User.Id, out bool _);
-            }
-        }
-
-        public async void HandleCommand(ReceptionClient<User> updateData)
-        {
-            await HandleCommandAbstractyon(updateData, async () =>
-            {
-                if (await CheckRegister(updateData)) return;
-
-                if (updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
-                    updateData.Command == _commandGetKeyboard &&
-                    (updateData.User.IsAdmin || updateData.User.IsStarted)
-                    )
+                var btn = (ButtonSearch)btnNull;
+                if (btn.Row == 0)
                 {
-                    await SendKeyboard(updateData);
-                }
-                else if (updateData.User.IsAdmin &&
-                        updateData.ReceptionType.HasFlag(ReceptionType.Message) &&
-                        updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
-                    await SendAllUsers(updateData, message);
-                }
-                else if (updateData.User.IsAdmin &&
-                updateData.ReceptionType.HasFlag(ReceptionType.Media) &&
-                updateData.Medias![0].Type == ".csv")
-                {
-                    await ApplayCommands(updateData);
-                }
-                else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
-                {
-                    await _bot.GetService<LoadMetrics>().Run(updateData);
-                }
-                else
-                {
-                    var btnNull = updateData.Client.GetIndexButton(updateData, Commands);
-                    if (btnNull == null)
+                    if (btn.Column == 0)
                     {
-                        await updateData.Send("Извини, 😞 я тебя не понял! 🤔");
-                        return;
-                    }
-                    var btn = (ButtonSearch)btnNull;
-                    if (btn.Row == 0)
-                    {
-                        if (btn.Column == 0)
-                        {
-                            await GetRatingUser(updateData);
-                        }
-                        else
-                        {
-                            Func<int, bool> predict = _ => true;
-                            if (!updateData.User.IsAdmin) predict = (command) => command == updateData.User.CommandId;
-                            MemoryStream stream = new();
-                            StreamWriter writer = new(stream, Encoding.UTF8);
-                            GetCSVTable(predict, writer.WriteLine, updateData.User.IsAdmin);
-                            writer.Flush();
-                            MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
-                            {
-                                Name = "fullRating.csv",
-                                Type = ".csv",
-                                MimeType = "text/csv",
-                            };
-                            stream.Position = 0;
-                            await updateData.Send(new()
-                            {
-                                Message = "Готово! 🎉 Информация о попытках сохранена в .csv файле! ✅ Можно приступать к анализу! 🤓 📊",
-                                Medias = [mediaSource]
-                            });
-                            stream.Close();
-                            stream.Dispose();
-                            writer.Dispose();
-                        }
+                        await GetRatingUser(updateData);
                     }
                     else
                     {
-                        if (btn.Column == 0) // Info
+                        Func<int, bool> predict = _ => true;
+                        if (!updateData.User.IsAdmin) predict = (command) => command == updateData.User.CommandId;
+                        MemoryStream stream = new();
+                        StreamWriter writer = new(stream, Encoding.UTF8);
+                        GetCSVTable(predict, writer.WriteLine, updateData.User.IsAdmin);
+                        writer.Flush();
+                        MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
                         {
-                            await updateData.Send(new SendingClient() { Message = _helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString()) }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
-                        }
-                        else // Code
+                            Name = "fullRating.csv",
+                            Type = ".csv",
+                            MimeType = "text/csv",
+                        };
+                        stream.Position = 0;
+                        await updateData.Send(new()
                         {
-                            await updateData.Send(new SendingClient()
-                            {
-                                Message = $"```python\n{File.ReadAllText(configuration[LoadMetrics.KeyPathScript]!)}\n```"
-                            }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
-                        }
+                            Message = "Готово! 🎉 Информация о попытках сохранена в .csv файле! ✅ Можно приступать к анализу! 🤓 📊",
+                            Medias = [mediaSource]
+                        });
+                        stream.Close();
+                        stream.Dispose();
+                        writer.Dispose();
                     }
                 }
-            });
+                else
+                {
+                    if (btn.Column == 0) // Info
+                    {
+                        await updateData.Send(new SendingClient() { Message = _helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString()) }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                    }
+                    else // Code
+                    {
+                        await updateData.Send(new SendingClient()
+                        {
+                            Message = $"```python\n{File.ReadAllText(configuration[LoadMetrics.KeyPathScript]!)}\n```"
+                        }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                    }
+                }
+            }
         }
 
         private async Task<bool> CheckRegister(ReceptionClient<User> updateData)

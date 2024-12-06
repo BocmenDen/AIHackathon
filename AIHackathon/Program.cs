@@ -2,9 +2,9 @@
 using AIHackathon.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OneBot;
-using OneBot.Extensions;
-using OneBot.Interfaces;
 using OneBot.Tg;
 using OneBot.Utils;
 using System.Reflection;
@@ -31,32 +31,14 @@ namespace AIHackathon
             _connectText = config[KeyConnectionDB]??throw new Exception("Отсутствуют данные подключения");
 
             TgClient<User, DataBase> clientBot = _bot.GetService<TgClient<User, DataBase>>();
+            MessageSpam spamFilter = _bot.GetService<MessageSpam>();
             BotHandle botHandle = _bot.GetService<BotHandle>();
-
-            clientBot.RegisterUpdateHadler(botHandle.HandleCommand);
+            spamFilter.Init(botHandle.HandleCommand);
+            clientBot.RegisterUpdateHadler(spamFilter.HandleCommand);
 
             var idThisSender = SharedUtils.CalculeteID<Program>();
 
-            ILogger log = _bot.GetService<ILogger>();
-
-            if (log is Logger logger)
-            {
-                logger.RegisterName(clientBot.Id, "TG");
-                logger.RegisterName(BotHandle.Id, "BotHandle");
-                logger.RegisterName(idThisSender, "Program");
-            }
-
-        restart:
-            try
-            {
-                clientBot.Run().Wait();
-            }
-            catch (Exception ex)
-            {
-                log.Error($"Произошла глобальная ошибка: {ex}", idThisSender);
-                Thread.Sleep(5000);
-                goto restart;
-            }
+            clientBot.Run().Wait();
         }
     }
 }
