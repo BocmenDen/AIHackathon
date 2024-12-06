@@ -50,11 +50,15 @@ namespace AIHackathon.Services
 
         public async void HandleCommand(ReceptionClient<User> updateData)
         {
-            if (updateData.User.IsAdmin) await HandleMessage(updateData);
+            if (updateData.User.IsAdmin)
+            {
+                await HandleMessage(updateData);
+                return;
+            }
             if (_blackList.GetSpamState(updateData).IsSpam() ||
                 (await _singleMessageFilter.CheckMessageSpamStatus(updateData, "Пожалуйста, подождите немного! ✨ Ваше сообщение обрабатывается… ⚙️")).IsSpam()
                 ) return;
-            var state = await _spamFilter.CheckMessageSpamStatus(updateData, $"Вы превысели количество сообщений [{_spamFilter.MaxEvent} сообщений] за [{ConvertTimeSpan(_spamFilter.TimeWindow)}], выдан бан на [{ConvertTimeSpan(_banTime)}]");
+            var state = await _spamFilter.CheckMessageSpamStatus(updateData, $"Вы превысели {_spamFilter.MaxEvent} сообщений за {ConvertTimeSpan(_spamFilter.TimeWindow)}, выдан бан на {ConvertTimeSpan(_banTime)}");
             if (state == StateSpam.ForbiddenFirst)
                 _blackList.AddBlock(updateData.User, _banTime);
             if (state.IsSpam()) return;
