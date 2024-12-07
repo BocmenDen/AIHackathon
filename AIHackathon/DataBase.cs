@@ -6,8 +6,8 @@ using OneBot.Tg;
 
 namespace AIHackathon
 {
-    [ServiceDB]
-    public class DataBase : UsersDB<User>, IDBTg<User>
+    [Service(Type = ServiceType.DbContextPool)]
+    public class DataBase : BaseDB<User>, IDBTg<User>
     {
         public DbSet<MetricsUser> Metrics { get; set; } = null!;
         public DbSet<Command> Commands { get; set; } = null!;

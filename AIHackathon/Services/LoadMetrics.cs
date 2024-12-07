@@ -1,7 +1,7 @@
 ﻿using AIHackathon.Model;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using OneBot;
 using OneBot.Attributes;
 using OneBot.Models;
 using System.Diagnostics;
@@ -9,7 +9,7 @@ using System.Diagnostics;
 namespace AIHackathon.Services
 {
     [Service]
-    public class LoadMetrics(IConfiguration configuration, ContextBot<User, DataBase> contextBot)
+    public class LoadMetrics(IConfiguration configuration, IServiceProvider serviceProvider)
     {
         public const string KeyDirectory = "modelsPathStorage";
         public const string KeyPathPython = "pythonPathExe";
@@ -23,7 +23,7 @@ namespace AIHackathon.Services
         private readonly string _pathDBTarget = configuration[KeyDBTarget] ?? throw new Exception("Отсутствуют данные о целевом столбце");
 
         private readonly string _directoryFiles = configuration[KeyDirectory] ?? throw new Exception("Нед данных о расположении хранилища моделей");
-        private readonly ContextBot<User, DataBase> _contextBot = contextBot ?? throw new ArgumentNullException(nameof(contextBot));
+        private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
         public async Task Run(ReceptionClient<User> updateData)
         {
@@ -58,7 +58,7 @@ namespace AIHackathon.Services
             metric.PathFile = subPath;
             sendingClient.Message = "Сохраняю результаты... 💾 Почти готово! ⏳";
             await updateData.Send(sendingClient);
-            var db = _contextBot.GetService<DataBase>();
+            var db = _serviceProvider.GetRequiredService<DataBase>();
             db.Metrics.Add(metric);
             db.SaveChanges();
 
