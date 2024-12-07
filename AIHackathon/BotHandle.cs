@@ -23,8 +23,8 @@ namespace AIHackathon
         private const string KeyIsFilterUsers = "bot_isFilterUsers";
 
         public const string SendAllCommand = "/sendAll";
-        public const string SendOnAcceptModels = "/on";
-        public const string SendOffAcceptModels = "/off";
+        public const string SendOnAcceptModels = "on";
+        public const string SendOffAcceptModels = "off";
 
         private const int WaitStartMessage = 1000;
         private readonly static string[] HelloMessage =
