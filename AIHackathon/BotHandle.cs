@@ -23,6 +23,9 @@ namespace AIHackathon
         private const string KeyIsFilterUsers = "bot_isFilterUsers";
 
         public const string SendAllCommand = "/sendAll";
+        public const string SendOnAcceptModels = "/on";
+        public const string SendOffAcceptModels = "/off";
+
         private const int WaitStartMessage = 1000;
         private readonly static string[] HelloMessage =
         [
@@ -33,14 +36,15 @@ namespace AIHackathon
             "3️⃣ Отправь свою обученную модель для оценки. 🤖",
             "4️⃣ Следи за результатами своей команды!\n🏆"
         ];
-        private readonly static ButtonsSend Commands = new([["Рейтинг", "Export to CSV"], ["Информация", "Код оценивания"]]);
+        private readonly static ButtonsSend Commands = new([["Рейтинг", "Export to CSV"], ["Информация", "Код оценивания"], ["Статистика бота"]]);
 
         private readonly bool _isFilterUsers = configuration.GetValue<bool?>(KeyIsFilterUsers) ?? false;
         private readonly string _linkSurvey = configuration[KeyLinkSurvey]??throw new Exception("Нет данных о ссылке на опрос");
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
-
         private readonly IServiceProvider _serviceProvider = serviceProvider??throw new ArgumentNullException(nameof(serviceProvider));
+
+        private bool _stateAcceptModels = false;
 
         public async Task HandleCommand(ReceptionClient<User> updateData)
         {
@@ -52,6 +56,21 @@ namespace AIHackathon
                 )
             {
                 await SendKeyboard(updateData);
+            }
+            else if (updateData.User.IsAdmin &&
+                updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
+                updateData.Command == SendOnAcceptModels || updateData.Command == SendOffAcceptModels)
+            {
+                switch (updateData.Command!)
+                {
+                    case SendOnAcceptModels:
+                        _stateAcceptModels = true;
+                        break;
+                    case SendOffAcceptModels:
+                        _stateAcceptModels = false;
+                        break;
+                }
+                await updateData.Send($"Изменения применены, текущий статус: {_stateAcceptModels}");
             }
             else if (updateData.User.IsAdmin &&
                     updateData.ReceptionType.HasFlag(ReceptionType.Message) &&
@@ -68,7 +87,10 @@ namespace AIHackathon
             }
             else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
             {
-                await _serviceProvider.GetRequiredService<LoadMetrics>().Run(updateData);
+                if (_stateAcceptModels)
+                    await _serviceProvider.GetRequiredService<LoadMetrics>().Run(updateData);
+                else
+                    await updateData.Send("В данный момент приём работ для оценивания отключен. Подождите немного возможно ведуться технические работы.");
             }
             else
             {
@@ -110,7 +132,7 @@ namespace AIHackathon
                         writer.Dispose();
                     }
                 }
-                else
+                else if (btn.Row == 1)
                 {
                     if (btn.Column == 0) // Info
                     {
@@ -123,6 +145,10 @@ namespace AIHackathon
                             Message = $"```python\n{File.ReadAllText(configuration[LoadMetrics.KeyPathScript]!)}\n```"
                         }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
                     }
+                }
+                else
+                {
+                    await SendMetrics(updateData);
                 }
             }
         }
@@ -273,7 +299,7 @@ namespace AIHackathon
                 writeLine(line);
         }
 
-        private async Task SendAllUsers(ReceptionClient<User> reception, string message)
+        private async Task SendAllUsers(ReceptionClient<User> updateData, string message)
         {
             var db = _serviceProvider.GetRequiredService<DataBase>();
             var tgClient = _serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
@@ -284,9 +310,27 @@ namespace AIHackathon
                 {
                     Message = $"✉️ Сообщение от организаторов хакатона:\n\n{message}",
                     Keyboard = Commands,
-                    Medias = reception.Medias
+                    Medias = updateData.Medias
                 }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
             }
+        }
+
+        private Task SendMetrics(ReceptionClient<User> updateData)
+        {
+            StringBuilder stringBuilder = new();
+            if (_stateAcceptModels)
+                stringBuilder.AppendLine("Бот сейчас принимает модели для оценивания! 🎉 Вот текущая статистика:");
+            else
+                stringBuilder.AppendLine("Сейчас бот не принимает новые задачи 🚫. Вот краткий обзор текущей ситуации:");
+            stringBuilder.AppendLine();
+            stringBuilder.Append(_serviceProvider.GetRequiredService<MessageSpam>().GetMetrics());
+            stringBuilder.AppendLine($"📊 Оцениваемые работы: {LoadMetrics.CurrentProcessing}");
+            stringBuilder.AppendLine();
+            if (_stateAcceptModels)
+                stringBuilder.AppendLine("Прием моделей включен ✅. Можете отправлять ваши модели! 🚀");
+            else
+                stringBuilder.AppendLine("Всё спокойно! 😌 Бот готов к работе и ожидает включение приёма работ ✅. В это время Вы можете подготовить модели к отправки или заготовить несколько вариаций обученной модели.");
+            return updateData.Send(stringBuilder);
         }
     }
 }

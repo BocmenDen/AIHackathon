@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OneBot.Attributes;
 using OneBot.Models;
 using OneBot.SpamBroker;
+using System.Text;
 
 namespace AIHackathon.Services
 {
@@ -93,6 +94,17 @@ namespace AIHackathon.Services
             if (timeSpan.Seconds > 0)
                 readableTimeSpan += timeSpan.Seconds + " сек.";
             return readableTimeSpan;
+        }
+
+        public StringBuilder GetMetrics()
+        {
+            StringBuilder stringBuilder = new();
+            stringBuilder.AppendLine($"🚫 Черный список: {_blackList.Count} пользователей");
+            _spamFilter.CleanupEmptyHistory(out int countElemInHistory);
+            stringBuilder.AppendLine($"✉️ Активность: За последние {ConvertTimeSpan(_spamFilter.TimeWindow)} получено {countElemInHistory} сообщения(й)");
+            var metric = _singleMessageFilter.GetMetric();
+            stringBuilder.AppendLine($"⏱️ Очередь Обрабатывается {metric.CountAll} сообщение(я) ({metric.CountForbiddenSpam} продолжают спамить)");
+            return stringBuilder;
         }
     }
 }

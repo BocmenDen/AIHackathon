@@ -25,9 +25,13 @@ namespace AIHackathon.Services
         private readonly string _directoryFiles = configuration[KeyDirectory] ?? throw new Exception("Нед данных о расположении хранилища моделей");
         private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
+        private static int currentProcessing = 0;
+        public static int CurrentProcessing => currentProcessing;
+
         public async Task Run(ReceptionClient<User> updateData)
         {
-            SendingClient sendingClient = new();
+            Interlocked.Increment(ref currentProcessing);
+            SendingClient sendingClient = [];
             MediaSource mediaSource = updateData.Medias![0];
             string subPath = Path.Combine(updateData.User.Id.ToString().Replace('-', '_'), $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}_{mediaSource.Name!}");
             string pathFile = Path.Combine(_directoryFiles, subPath);
@@ -64,6 +68,7 @@ namespace AIHackathon.Services
 
             sendingClient.Message = metric.ToString();
             await updateData.Send(sendingClient);
+            Interlocked.Decrement(ref currentProcessing);
         }
 
         private async Task<MetricsUser> Load(string pathModel)
@@ -77,8 +82,7 @@ namespace AIHackathon.Services
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.CreateNoWindow = true;
 
-
-            MetricsUser createError(string error)
+            static MetricsUser createError(string error)
             {
                 return new MetricsUser()
                 {
