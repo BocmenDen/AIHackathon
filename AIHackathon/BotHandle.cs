@@ -59,7 +59,7 @@ namespace AIHackathon
             }
             else if (updateData.User.IsAdmin &&
                 updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
-                updateData.Command == SendOnAcceptModels || updateData.Command == SendOffAcceptModels)
+                (updateData.Command == SendOnAcceptModels || updateData.Command == SendOffAcceptModels))
             {
                 switch (updateData.Command!)
                 {
