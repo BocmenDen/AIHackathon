@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OneBot.Attributes;
 using OneBot.Models;
 using OneBot.Tg;
+using System;
 using System.Text;
 using Telegram.Bot.Extensions;
 
@@ -42,13 +43,13 @@ namespace AIHackathon
         private readonly string _linkSurvey = configuration[KeyLinkSurvey]??throw new Exception("Нет данных о ссылке на опрос");
         private readonly string _commandGetKeyboard = configuration[KeyCommandGetKeyboard]??throw new Exception("Нет данных об команде получения клавиатуры");
         private readonly string _helpInfoText = File.ReadAllText(configuration[KeyHelpMessage]??throw new Exception("Нет данных файле с справкой"));
-        private readonly IServiceProvider _serviceProvider = serviceProvider??throw new ArgumentNullException(nameof(serviceProvider));
 
         private bool _stateAcceptModels = false;
 
         public async Task HandleCommand(ReceptionClient<User> updateData)
         {
-            if (await CheckRegister(updateData)) return;
+            using var scope = serviceProvider.CreateScope();
+            if (await CheckRegister(updateData, scope.ServiceProvider)) return;
 
             if (updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
                 updateData.Command == _commandGetKeyboard &&
@@ -77,18 +78,18 @@ namespace AIHackathon
                     updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
             {
                 string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
-                await SendAllUsers(updateData, message);
+                await SendAllUsers(updateData, message, scope.ServiceProvider);
             }
             else if (updateData.User.IsAdmin &&
             updateData.ReceptionType.HasFlag(ReceptionType.Media) &&
             updateData.Medias![0].Type == ".csv")
             {
-                await ApplayCommands(updateData);
+                await ApplayCommands(updateData, scope.ServiceProvider);
             }
             else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
             {
                 if (_stateAcceptModels)
-                    await _serviceProvider.GetRequiredService<LoadMetrics>().Run(updateData);
+                    await scope.ServiceProvider.GetRequiredService<LoadMetrics>().Run(updateData);
                 else
                     await updateData.Send("В данный момент приём работ для оценивания отключен. Подождите немного возможно ведуться технические работы.");
             }
@@ -105,7 +106,7 @@ namespace AIHackathon
                 {
                     if (btn.Column == 0)
                     {
-                        await GetRatingUser(updateData);
+                        await GetRatingUser(updateData, scope.ServiceProvider);
                     }
                     else
                     {
@@ -113,7 +114,7 @@ namespace AIHackathon
                         if (!updateData.User.IsAdmin) predict = (command) => command == updateData.User.CommandId;
                         MemoryStream stream = new();
                         StreamWriter writer = new(stream, Encoding.UTF8);
-                        GetCSVTable(predict, writer.WriteLine, updateData.User.IsAdmin);
+                        GetCSVTable(predict, writer.WriteLine, updateData.User.IsAdmin, scope.ServiceProvider);
                         writer.Flush();
                         MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
                         {
@@ -148,12 +149,12 @@ namespace AIHackathon
                 }
                 else
                 {
-                    await SendMetrics(updateData);
+                    await SendMetrics(updateData, scope.ServiceProvider);
                 }
             }
         }
 
-        private async Task<bool> CheckRegister(ReceptionClient<User> updateData)
+        private async Task<bool> CheckRegister(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
         {
             if (!(updateData.User.IsStarted || updateData.User.IsAdmin))
             {
@@ -169,23 +170,23 @@ namespace AIHackathon
                 if (updateData.OriginalMessage is Telegram.Bot.Types.Update up && !string.IsNullOrWhiteSpace(up.Message?.From?.Username))
                 {
                     updateData.User.Nickname = up.Message.From.Username;
-                    var db = _serviceProvider.GetRequiredService<DataBase>();
+                    using var db = serviceProvider.GetRequiredService<DataBase>();
                     db.Users.Update(updateData.User);
-                    db.SaveChanges();
+                    await db.SaveChangesAsync();
                 }
                 return true;
             }
             return false;
         }
 
-        private async Task ApplayCommands(ReceptionClient<User> updateData)
+        private async Task ApplayCommands(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
         {
             SendingClient send = string.Empty;
             using var streamFile = new StreamReader(await updateData.Medias![0].GetStream());
             string file = streamFile.ReadToEnd();
             var matrix = file.Split("\n").Select(x => x.Replace("\r", "").Replace(',', ';').Split(';').Select(d => d.Trim()).ToArray());
-            var db = _serviceProvider.GetRequiredService<DataBase>();
-            var tgClient = _serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
+            using var db = serviceProvider.GetRequiredService<DataBase>();
+            var tgClient = serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
             foreach (var line in matrix)
             {
                 if (line.Length < 3 || !int.TryParse(line[0], out int id)) continue;
@@ -196,7 +197,7 @@ namespace AIHackathon
                 {
                     command = new Command(commandName);
                     db.Commands.Add(command);
-                    db.SaveChanges();
+                    await db.SaveChangesAsync();
                 }
                 User? user = db.Users.Find(id);
                 if (user == null)
@@ -220,7 +221,7 @@ namespace AIHackathon
                 user.CommandId = command.Id;
                 user.Name = userName;
                 db.Users.Update(user);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
                 user.IsStarted = true;
                 TgUser<User> tgUser = db.TgUsers.AsNoTracking().FirstOrDefault(x => x.User.Id == id)!;
                 if (oldIdComman != user.CommandId)
@@ -232,7 +233,7 @@ namespace AIHackathon
                     });
                 }
             }
-            db.SaveChanges();
+            await db.SaveChangesAsync();
         }
 
         private static Task SendKeyboard(ReceptionClient<User> updateData)
@@ -250,9 +251,9 @@ namespace AIHackathon
             public string NameCommand = n;
         }
 
-        private async Task GetRatingUser(ReceptionClient<User> updateData)
+        private async Task GetRatingUser(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
         {
-            var db = _serviceProvider.GetRequiredService<DataBase>();
+            using var db = serviceProvider.GetRequiredService<DataBase>();
             SendingClient sending = "";
             int rating = 1;
 
@@ -280,9 +281,9 @@ namespace AIHackathon
             await updateData.Send(sending);
         }
 
-        private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine, bool isIgnoreTestUser)
+        private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine, bool isIgnoreTestUser, IServiceProvider serviceProvider)
         {
-            var db = _serviceProvider.GetRequiredService<DataBase>();
+            using var db = serviceProvider.GetRequiredService<DataBase>();
             var lines = (from u in db.Users
                          join c in db.Commands on u.CommandId equals c.Id
                          join m in db.Metrics on u.Id equals m.UserId
@@ -299,10 +300,10 @@ namespace AIHackathon
                 writeLine(line);
         }
 
-        private async Task SendAllUsers(ReceptionClient<User> updateData, string message)
+        private async Task SendAllUsers(ReceptionClient<User> updateData, string message, IServiceProvider serviceProvider)
         {
-            var db = _serviceProvider.GetRequiredService<DataBase>();
-            var tgClient = _serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
+            using var db = serviceProvider.GetRequiredService<DataBase>();
+            var tgClient = serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
             foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking().Where(x => !x.User.IsAdmin))
             {
                 if (tgUser.User.IsAdmin) continue;
@@ -315,7 +316,7 @@ namespace AIHackathon
             }
         }
 
-        private Task SendMetrics(ReceptionClient<User> updateData)
+        private Task SendMetrics(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
         {
             StringBuilder stringBuilder = new();
             if (_stateAcceptModels)
@@ -323,7 +324,7 @@ namespace AIHackathon
             else
                 stringBuilder.AppendLine("Сейчас бот не принимает новые задачи 🚫. Вот краткий обзор текущей ситуации:");
             stringBuilder.AppendLine();
-            stringBuilder.Append(_serviceProvider.GetRequiredService<MessageSpam>().GetMetrics());
+            stringBuilder.Append(serviceProvider.GetRequiredService<MessageSpam>().GetMetrics());
             stringBuilder.AppendLine($"📊 Оцениваемые работы: {LoadMetrics.CurrentProcessing}");
             stringBuilder.AppendLine();
             if (_stateAcceptModels)
