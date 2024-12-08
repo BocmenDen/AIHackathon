@@ -8,7 +8,7 @@ using System.Diagnostics;
 
 namespace AIHackathon.Services
 {
-    [Service]
+    [Service(Type = ServiceType.Scoped)]
     public class LoadMetrics(IConfiguration configuration, IServiceProvider serviceProvider)
     {
         public const string KeyDirectory = "modelsPathStorage";
@@ -62,10 +62,9 @@ namespace AIHackathon.Services
             metric.PathFile = subPath;
             sendingClient.Message = "Сохраняю результаты... 💾 Почти готово! ⏳";
             await updateData.Send(sendingClient);
-            var db = _serviceProvider.GetRequiredService<DataBase>();
+            using var db = _serviceProvider.GetRequiredService<DataBase>();
             db.Metrics.Add(metric);
-            db.SaveChanges();
-
+            await db.SaveChangesAsync();
             sendingClient.Message = metric.ToString();
             await updateData.Send(sendingClient);
             Interlocked.Decrement(ref currentProcessing);
