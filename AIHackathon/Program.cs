@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OneBot;
 using OneBot.Tg;
 using OneBot.Utils;
@@ -20,6 +21,13 @@ namespace AIHackathon
             string configPath = args!= null && args.Length == 1 ? args[0] : "./config.json";
             IHost host = BotBuilder.CreateDefaultBuilder()
                 .ConfigureAppConfiguration(c => c.AddJsonFile(configPath))
+                .ConfigureLogging(l => 
+                    l.ClearProviders()
+                    .AddSimpleConsole(o =>
+                    {
+                        o.TimestampFormat = "[yyyy-MM-dd HH:mm:ss] -> ";
+                    })
+                )
                 .RegisterDBContextOptions((c, b) => b.UseNpgsql(c[KeyConnectionDB]??throw new Exception("Отсутствуют данные подключения к БД")))
                 .RegisterServices(
                     Assembly.GetAssembly(typeof(Program)),

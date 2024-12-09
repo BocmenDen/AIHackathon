@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using OneBot.Attributes;
 using OneBot.Models;
 using OneBot.Tg;
-using System;
 using System.Text;
 using Telegram.Bot.Extensions;
 
@@ -78,6 +77,11 @@ namespace AIHackathon
                     updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
             {
                 string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    await updateData.Send("Вы отправили пустую строку такое сообщениее не будед разосланно");
+                    return;
+                }
                 await SendAllUsers(updateData, message, scope.ServiceProvider);
             }
             else if (updateData.User.IsAdmin &&
@@ -292,7 +296,7 @@ namespace AIHackathon
                          select new
                          {
                              commandId = c.Id,
-                             line = $"{u.Id};{u.Name};{u.Nickname};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime};{m.Library};{m.Accuracy};{m.PathFile};"
+                             line = $"{u.Id};{u.Name};{u.Nickname};{u.CommandId};{c.Name};{m.MetricId};{m.DateTime.AddHours(3)};{m.Library};{m.Accuracy};{m.PathFile};"
                          }
             ).AsNoTracking().AsEnumerable().Where(x => predict(x.commandId)).Select(x => x.line);
             writeLine("UserId;UserName;UserNickname;CommandId;CommandName;MetricId;DateTime;Library;MetricValue;PathModel;");

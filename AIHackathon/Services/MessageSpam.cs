@@ -101,9 +101,9 @@ namespace AIHackathon.Services
             StringBuilder stringBuilder = new();
             stringBuilder.AppendLine($"🚫 Черный список: {_blackList.Count} пользователей");
             _spamFilter.CleanupEmptyHistory(out int countElemInHistory);
-            stringBuilder.AppendLine($"✉️ Активность: За последние {ConvertTimeSpan(_spamFilter.TimeWindow)} получено {countElemInHistory} сообщения(й)");
+            stringBuilder.AppendLine($"✉️ Активность: За последние {ConvertTimeSpan(_spamFilter.TimeWindow)} получено {countElemInHistory} сообщени(е/я/й)");
             var metric = _singleMessageFilter.GetMetric();
-            stringBuilder.AppendLine($"⏱️ Очередь Обрабатывается {metric.CountAll} сообщение(я) ({metric.CountForbiddenSpam} продолжают спамить)");
+            stringBuilder.AppendLine($"⏱️ Очередь: Обрабатывается {metric.CountAll} сообщение(е/я/й) ({metric.CountForbiddenSpam} продолжают спамить)");
             return stringBuilder;
         }
     }
