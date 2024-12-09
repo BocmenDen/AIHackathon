@@ -55,4 +55,4 @@ try:
 except Exception as e:
     print(json.dumps({
         'error': str(e.error)
-    }), file=err)
+    }), file=out)
