@@ -15,7 +15,7 @@ def getPredict(pathModel):
   try:
     model = tf.keras.models.load_model(pathModel)
     fPredict = lambda x: model.predict(x)
-    nameLibrary = "tensorflow"
+    nameLibrary = "keras"
     return (nameLibrary, fPredict)
   except Exception:
     pass

@@ -228,13 +228,13 @@ namespace AIHackathon
                 await db.SaveChangesAsync();
                 user.IsStarted = true;
                 TgUser<User> tgUser = db.TgUsers.AsNoTracking().FirstOrDefault(x => x.User.Id == id)!;
-                if (oldIdComman != user.CommandId)
+                if (oldIdComman == null)
                 {
                     await tgClient.Send(tgUser, new SendingClient()
                     {
                         Message = $"Ого! 🤩 Меня добавили в базу данных бота! 🥳 Теперь я официально часть системы! 🤖\n\n{_helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString())}",
                         Keyboard = Commands
-                    });
+                    }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
                 }
             }
             await db.SaveChangesAsync();
@@ -310,7 +310,7 @@ namespace AIHackathon
             var tgClient = serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
             foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking().Where(x => !x.User.IsAdmin))
             {
-                if (tgUser.User.IsAdmin) continue;
+                if (tgUser.User.IsAdmin || !tgUser.User.IsStarted) continue;
                 await tgClient.Send(tgUser, new SendingClient()
                 {
                     Message = $"✉️ Сообщение от организаторов хакатона:\n\n{message}",
