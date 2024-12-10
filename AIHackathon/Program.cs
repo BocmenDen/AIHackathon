@@ -9,6 +9,8 @@ using OneBot;
 using OneBot.Tg;
 using OneBot.Utils;
 using System.Reflection;
+using Microsoft.Extensions.Logging.Console;
+using AIHackathon.LoggerNet;
 
 namespace AIHackathon
 {
@@ -23,10 +25,8 @@ namespace AIHackathon
                 .ConfigureAppConfiguration(c => c.AddJsonFile(configPath))
                 .ConfigureLogging(l => 
                     l.ClearProviders()
-                    .AddSimpleConsole(o =>
-                    {
-                        o.TimestampFormat = "[yyyy-MM-dd HH:mm:ss] -> ";
-                    })
+                    .AddConsole(o => o.FormatterName = SimpleConsoleFormatter.NameFormatter)
+                    .AddConsoleFormatter<LoggerNet.SimpleConsoleFormatter, SimpleConsoleFormatterOptions>()
                 )
                 .RegisterDBContextOptions((c, b) => b.UseNpgsql(c[KeyConnectionDB]??throw new Exception("Отсутствуют данные подключения к БД")))
                 .RegisterServices(
