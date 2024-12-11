@@ -264,7 +264,7 @@ namespace AIHackathon
             var commandInfo = (from u in db.Users
                                join c in db.Commands on u.CommandId equals c.Id
                                join m in db.Metrics on u.Id equals m.UserId
-                               where !EF.Functions.Like(u.Name, "%~%")
+                               where !EF.Functions.Like(u.Name, "%~%") && m.Error == null
                                group new { c, m } by new { c.Name, c.Id } into g
                                select new
                                {
@@ -272,7 +272,7 @@ namespace AIHackathon
                                    commandId = g.Key.Id,
                                    metric = g.Max(x => x.m.ROC_AUC),
                                }
-                       ).OrderBy(x => x.metric);
+                       ).OrderByDescending(x => x.metric);
 
             foreach (var command in commandInfo)
             {
