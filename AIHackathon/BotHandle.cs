@@ -308,6 +308,7 @@ namespace AIHackathon
         {
             using var db = serviceProvider.GetRequiredService<DataBase>();
             var tgClient = serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
+            int counUsers = 0;
             foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking().Where(x => !x.User.IsAdmin))
             {
                 if (tgUser.User.IsAdmin || !tgUser.User.IsStarted) continue;
@@ -317,7 +318,9 @@ namespace AIHackathon
                     Keyboard = Commands,
                     Medias = updateData.Medias
                 }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                counUsers++;
             }
+            await updateData.Send($"Готово отправлено {counUsers} сообщений");
         }
 
         private Task SendMetrics(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
