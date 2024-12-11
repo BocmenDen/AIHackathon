@@ -77,9 +77,9 @@ namespace AIHackathon
                     updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
             {
                 string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
-                if (string.IsNullOrWhiteSpace(message))
+                if (string.IsNullOrWhiteSpace(message) && !updateData.ReceptionType.HasFlag(ReceptionType.Media))
                 {
-                    await updateData.Send("Вы отправили пустую строку такое сообщениее не будед разосланно");
+                    await updateData.Send("Вы отправили пустую строку такое сообщениее не будет разосланно");
                     return;
                 }
                 await SendAllUsers(updateData, message, scope.ServiceProvider);
@@ -259,7 +259,7 @@ namespace AIHackathon
         {
             using var db = serviceProvider.GetRequiredService<DataBase>();
             SendingClient sending = "";
-            int rating = 1;
+            int rating = 0;
 
             var commandInfo = (from u in db.Users
                                join c in db.Commands on u.CommandId equals c.Id
@@ -273,17 +273,35 @@ namespace AIHackathon
                                    metric = g.Max(x => x.m.ROC_AUC),
                                }
                        ).OrderByDescending(x => x.metric);
-
+            sending += "Рейтинг построен на метрике ROC AUC:\n\n";
             foreach (var command in commandInfo)
             {
-                sending += $"[{rating++}] {command.commandName} -> ROC AUC {command.metric}";
+                sending += $"{NumberToEmodji(rating++)} {command.commandName}";
                 if (command.commandId == updateData.User.CommandId)
                     sending += "📍";
+                sending += $"\n└> {command.metric}";
                 sending+="\n";
             }
             if (string.IsNullOrEmpty(sending.Message)) sending.Message = "Таблица рейтинга пока пуста. 😕 Ждем первых участников! ⏳ Скоро здесь появятся лучшие результаты! ✨";
             await updateData.Send(sending);
         }
+
+        private static Dictionary<char, string> _emodji = new()
+        {
+            { '0', "0️⃣" },
+            { '1', "1️⃣" },
+            { '2', "2️⃣" },
+            { '3', "3️⃣" },
+            { '4', "4️⃣" },
+            { '5', "5️⃣" },
+            { '6', "6️⃣" },
+            { '7', "7️⃣" },
+            { '8', "8️⃣" },
+            { '9', "9️⃣" },
+        };
+
+        private string NumberToEmodji(int value)
+           => string.Join(string.Empty, value.ToString().Select(x => _emodji[x]));
 
         private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine, bool isIgnoreTestUser, IServiceProvider serviceProvider)
         {
@@ -314,10 +332,10 @@ namespace AIHackathon
                 if (tgUser.User.IsAdmin || !tgUser.User.IsStarted) continue;
                 await tgClient.Send(tgUser, new SendingClient()
                 {
-                    Message = $"✉️ Сообщение от организаторов хакатона:\n\n{message}",
+                    Message = $"✉️ Сообщение от организаторов хакатона\n\n{message}",
                     Keyboard = Commands,
                     Medias = updateData.Medias
-                }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
                 counUsers++;
             }
             await updateData.Send($"Готово отправлено {counUsers} сообщений");
