@@ -6,12 +6,15 @@ using Newtonsoft.Json;
 using OneBot.Attributes;
 using OneBot.Models;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace AIHackathon.Services
 {
     [Service(Type = ServiceType.Scoped)]
     public class LoadMetrics(IConfiguration configuration, IServiceProvider serviceProvider, ILogger<LoadMetrics> logger)
     {
+        private readonly static Regex _splitArgsRegex = new(@"[A-Za-z0-9_]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         public const string KeyDirectory = "modelsPathStorage";
         public const string KeyPathPython = "pythonPathExe";
         public const string KeyPathScript = "pythonPathScript";
@@ -53,7 +56,7 @@ namespace AIHackathon.Services
 
                 sendingClient.Message = "Погоди немного! ⏳ Сейчас я оцениваю модель... 🤔 Результаты будут скоро! \n✨";
                 await updateData.Send(sendingClient);
-                var metricTask = Load(pathFile);
+                var metricTask = Load(pathFile, updateData.Message);
                 while (!metricTask.IsCompleted)
                 {
                     sendingClient.Message += "✨";
@@ -83,12 +86,18 @@ namespace AIHackathon.Services
             }
         }
 
-        private async Task<MetricsUser> Load(string pathModel)
+        private async Task<MetricsUser> Load(string pathModel, string? argsLine)
         {
+            if (!string.IsNullOrWhiteSpace(argsLine))
+            {
+                var args = _splitArgsRegex.Matches(argsLine!).Where(x => x.Success).OrderBy(x => x.Index).Select(x => x.Value.Trim());
+                argsLine = string.Join(' ', args);
+            }
+            argsLine ??= string.Empty;
             using Process process = new();
             process.StartInfo.FileName = _pathPython;
             process.StartInfo.Environment["TF_ENABLE_ONEDNN_OPTS"] = "0";
-            process.StartInfo.Arguments = $"\"{_pathScript}\" {pathModel} {_pathDBModel} {_pathDBTarget}";
+            process.StartInfo.Arguments = $"\"{_pathScript}\" {pathModel} {_pathDBModel} {_pathDBTarget} {argsLine}";
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;

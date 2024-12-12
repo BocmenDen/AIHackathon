@@ -18,6 +18,8 @@ namespace AIHackathon.Model
         public DateTime DateTime { get; set; }
         [JsonProperty("error")]
         public string? Error { get; set; }
+        [JsonProperty("columns")]
+        public string? Columns { get; set; }
 
         public bool IsSuccess => string.IsNullOrWhiteSpace(Error);
 
