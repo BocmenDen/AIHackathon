@@ -34,7 +34,8 @@ namespace AIHackathon
             $"\n1️⃣Заполни анкету регистрации по этой [ссылке]({KeyLinkSurvey}) ➡️ и укажи свой ID: [{KeyInsertId}]",
             "2️⃣ Дождись сообщения от бота об открытии доступа. ✉️",
             "3️⃣ Отправь свою обученную модель для оценки. 🤖",
-            "4️⃣ Следи за результатами своей команды!\n🏆"
+            "4️⃣ Следи за результатами своей команды! 🏆\n",
+            "Если вас пропустили и вы отправили анкету регистрации, напишите об этой проблеме @bocmenden"
         ];
         private readonly static ButtonsSend Commands = new([["Рейтинг", "Export to CSV"], ["Информация", "Код оценивания"], ["Статистика бота"]]);
 
@@ -45,23 +46,23 @@ namespace AIHackathon
 
         private bool _stateAcceptModels = false;
 
-        public async Task HandleCommand(ReceptionClient<User> updateData)
+        public async Task HandleCommand(UpdateContext<User> context)
         {
             using var scope = serviceProvider.CreateScope();
-            if (await CheckRegister(updateData, scope.ServiceProvider)) return;
+            if (await CheckRegister(context, scope.ServiceProvider)) return;
 
-            if (updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
-                updateData.Command == _commandGetKeyboard &&
-                (updateData.User.IsAdmin || updateData.User.IsStarted)
+            if (context.Update.UpdateType.HasFlag(UpdateType.Command) &&
+                context.Update.Command == _commandGetKeyboard &&
+                (context.User.IsAdmin || context.User.IsStarted)
                 )
             {
-                await SendKeyboard(updateData);
+                await SendKeyboard(context);
             }
-            else if (updateData.User.IsAdmin &&
-                updateData.ReceptionType.HasFlag(ReceptionType.Command) &&
-                (updateData.Command == SendOnAcceptModels || updateData.Command == SendOffAcceptModels))
+            else if (context.User.IsAdmin &&
+                context.Update.UpdateType.HasFlag(UpdateType.Command) &&
+                (context.Update.Command == SendOnAcceptModels || context.Update.Command == SendOffAcceptModels))
             {
-                switch (updateData.Command!)
+                switch (context.Update.Command!)
                 {
                     case SendOnAcceptModels:
                         _stateAcceptModels = true;
@@ -70,39 +71,39 @@ namespace AIHackathon
                         _stateAcceptModels = false;
                         break;
                 }
-                await updateData.Send($"Изменения применены, текущий статус: {_stateAcceptModels}");
+                await context.Send($"Изменения применены, текущий статус: {_stateAcceptModels}");
             }
-            else if (updateData.User.IsAdmin &&
-                    updateData.ReceptionType.HasFlag(ReceptionType.Message) &&
-                    updateData.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
+            else if (context.User.IsAdmin &&
+                    context.Update.UpdateType.HasFlag(UpdateType.Message) &&
+                    context.Update.Message?.IndexOf(SendAllCommand, StringComparison.OrdinalIgnoreCase) == 0)
             {
-                string message = ((Telegram.Bot.Types.Update)updateData.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
-                if (string.IsNullOrWhiteSpace(message) && !updateData.ReceptionType.HasFlag(ReceptionType.Media))
+                string message = ((Telegram.Bot.Types.Update)context.Update.OriginalMessage!)!.Message!.ToMarkdown()!.Replace(SendAllCommand, "", StringComparison.OrdinalIgnoreCase).Trim();
+                if (string.IsNullOrWhiteSpace(message) && !context.Update.UpdateType.HasFlag(UpdateType.Media))
                 {
-                    await updateData.Send("Вы отправили пустую строку такое сообщениее не будет разосланно");
+                    await context.Send("Вы отправили пустую строку такое сообщениее не будет разосланно");
                     return;
                 }
-                await SendAllUsers(updateData, message, scope.ServiceProvider);
+                await SendAllUsers(context, message, scope.ServiceProvider);
             }
-            else if (updateData.User.IsAdmin &&
-            updateData.ReceptionType.HasFlag(ReceptionType.Media) &&
-            updateData.Medias![0].Type == ".csv")
+            else if (context.User.IsAdmin &&
+            context.Update.UpdateType.HasFlag(UpdateType.Media) &&
+            context.Update.Medias![0].Type == ".csv")
             {
-                await ApplayCommands(updateData, scope.ServiceProvider);
+                await ApplayCommands(context, scope.ServiceProvider);
             }
-            else if (updateData.ReceptionType.HasFlag(ReceptionType.Media) && !updateData.User.IsAdmin)
+            else if (context.Update.UpdateType.HasFlag(UpdateType.Media) && !context.User.IsAdmin)
             {
                 if (_stateAcceptModels)
-                    await scope.ServiceProvider.GetRequiredService<LoadMetrics>().Run(updateData);
+                    await scope.ServiceProvider.GetRequiredService<LoadMetrics>().Run(context);
                 else
-                    await updateData.Send("В данный момент приём работ для оценивания отключен. Подождите немного возможно ведуться технические работы.");
+                    await context.Send("В данный момент приём работ для оценивания отключен. Подождите немного возможно ведуться технические работы.");
             }
             else
             {
-                var btnNull = updateData.Client.GetIndexButton(updateData, Commands);
+                var btnNull = context.Client.GetIndexButton(context, Commands);
                 if (btnNull == null)
                 {
-                    await updateData.Send("Извини, 😞 я тебя не понял! 🤔");
+                    await context.Send("Извини, 😞 я тебя не понял! 🤔");
                     return;
                 }
                 var btn = (ButtonSearch)btnNull;
@@ -110,15 +111,15 @@ namespace AIHackathon
                 {
                     if (btn.Column == 0)
                     {
-                        await GetRatingUser(updateData, scope.ServiceProvider);
+                        await GetRatingUser(context, scope.ServiceProvider);
                     }
                     else
                     {
                         Func<int, bool> predict = _ => true;
-                        if (!updateData.User.IsAdmin) predict = (command) => command == updateData.User.CommandId;
+                        if (!context.User.IsAdmin) predict = (command) => command == context.User.CommandId;
                         MemoryStream stream = new();
                         StreamWriter writer = new(stream, Encoding.UTF8);
-                        GetCSVTable(predict, writer.WriteLine, updateData.User.IsAdmin, scope.ServiceProvider);
+                        GetCSVTable(predict, writer.WriteLine, context.User.IsAdmin, scope.ServiceProvider);
                         writer.Flush();
                         MediaSource mediaSource = new(() => Task.FromResult<Stream>(stream))
                         {
@@ -127,7 +128,7 @@ namespace AIHackathon
                             MimeType = "text/csv",
                         };
                         stream.Position = 0;
-                        await updateData.Send(new()
+                        await context.Send(new()
                         {
                             Message = "Готово! 🎉 Информация о попытках сохранена в .csv файле! ✅ Можно приступать к анализу! 🤓 📊",
                             Medias = [mediaSource]
@@ -141,11 +142,11 @@ namespace AIHackathon
                 {
                     if (btn.Column == 0) // Info
                     {
-                        await updateData.Send(new SendingClient() { Message = _helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString()) }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                        await context.Send(new SendModel() { Message = _helpInfoText.Replace(KeyInsertId, context.User.Id.ToString()) }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
                     }
                     else // Code
                     {
-                        await updateData.Send(new SendingClient()
+                        await context.Send(new SendModel()
                         {
                             Message = $"```python\n{File.ReadAllText(configuration[LoadMetrics.KeyPathScript]!)}\n```"
                         }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
@@ -153,29 +154,29 @@ namespace AIHackathon
                 }
                 else
                 {
-                    await SendMetrics(updateData, scope.ServiceProvider);
+                    await SendMetrics(context, scope.ServiceProvider);
                 }
             }
         }
 
-        private async Task<bool> CheckRegister(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
+        private async Task<bool> CheckRegister(UpdateContext<User> context, IServiceProvider serviceProvider)
         {
-            if (!(updateData.User.IsStarted || updateData.User.IsAdmin))
+            if (!(context.User.IsStarted || context.User.IsAdmin))
             {
                 if (_isFilterUsers) return true;
-                SendingClient sendingClient = string.Empty;
+                SendModel sendingClient = string.Empty;
                 sendingClient.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown);
                 foreach (var message in HelloMessage)
                 {
-                    sendingClient.Message += message.Replace(KeyLinkSurvey, _linkSurvey).Replace(KeyInsertId, updateData.User.Id.ToString()) + "\n";
-                    await updateData.Send(sendingClient);
+                    sendingClient.Message += message.Replace(KeyLinkSurvey, _linkSurvey).Replace(KeyInsertId, context.User.Id.ToString()) + "\n";
+                    await context.Send(sendingClient);
                     Thread.Sleep(WaitStartMessage);
                 }
-                if (updateData.OriginalMessage is Telegram.Bot.Types.Update up && !string.IsNullOrWhiteSpace(up.Message?.From?.Username))
+                if (context.Update.OriginalMessage is Telegram.Bot.Types.Update up && !string.IsNullOrWhiteSpace(up.Message?.From?.Username))
                 {
-                    updateData.User.Nickname = up.Message.From.Username;
+                    context.User.Nickname = up.Message.From.Username;
                     using var db = serviceProvider.GetRequiredService<DataBase>();
-                    db.Users.Update(updateData.User);
+                    db.Users.Update(context.User);
                     await db.SaveChangesAsync();
                 }
                 return true;
@@ -183,10 +184,10 @@ namespace AIHackathon
             return false;
         }
 
-        private async Task ApplayCommands(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
+        private async Task ApplayCommands(UpdateContext<User> context, IServiceProvider serviceProvider)
         {
-            SendingClient send = string.Empty;
-            using var streamFile = new StreamReader(await updateData.Medias![0].GetStream());
+            SendModel send = string.Empty;
+            using var streamFile = new StreamReader(await context.Update.Medias![0].GetStream());
             string file = streamFile.ReadToEnd();
             var matrix = file.Split("\n").Select(x => x.Replace("\r", "").Replace(',', ';').Split(';').Select(d => d.Trim()).ToArray());
             using var db = serviceProvider.GetRequiredService<DataBase>();
@@ -207,42 +208,42 @@ namespace AIHackathon
                 if (user == null)
                 {
                     send.Message += $"Упс! 😕 Похоже, пользователя с ID [{id}] нет в базе данных. 🤔 Не могу обновить данные, которых нет. 😞 Надо проверить, всё ли в порядке.\n";
-                    await updateData.Send(send);
+                    await context.Send(send);
                     continue;
                 }
                 else
                 {
                     send.Message += $"🎉 Ура! 🎉 К команде {commandName} присоединился новый участник — пользователь [{id}]!\n";
-                    await updateData.Send(send);
+                    await context.Send(send);
                 }
                 if (user.IsAdmin)
                 {
                     send.Message += $"⚠️ Администратор не может принять роль участника [{id}]. Пожалуйста, проверьте настройки. 🤔\n";
-                    await updateData.Send(send);
+                    await context.Send(send);
                     continue;
                 }
                 var oldIdComman = user.CommandId;
                 user.CommandId = command.Id;
                 user.Name = userName;
+                user.IsStarted = true;
                 db.Users.Update(user);
                 await db.SaveChangesAsync();
-                user.IsStarted = true;
                 TgUser<User> tgUser = db.TgUsers.AsNoTracking().FirstOrDefault(x => x.User.Id == id)!;
                 if (oldIdComman == null)
                 {
-                    await tgClient.Send(tgUser, new SendingClient()
+                    await tgClient.Send(new SendModel()
                     {
-                        Message = $"Ого! 🤩 Меня добавили в базу данных бота! 🥳 Теперь я официально часть системы! 🤖\n\n{_helpInfoText.Replace(KeyInsertId, updateData.User.Id.ToString())}",
+                        Message = $"Ого! 🤩 Меня добавили в базу данных бота! 🥳 Теперь я официально часть системы! 🤖\n\n{_helpInfoText.Replace(KeyInsertId, context.User.Id.ToString())}",
                         Keyboard = Commands
-                    }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+                    }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown), tgUser);
                 }
             }
             await db.SaveChangesAsync();
         }
 
-        private static Task SendKeyboard(ReceptionClient<User> updateData)
+        private static Task SendKeyboard(UpdateContext<User> context)
         {
-            return updateData.Send(new SendingClient()
+            return context.Send(new SendModel()
             {
                 Message = "ГОРЯЧАЯ НОВИНА! 🔥 Клавиатура в твоих руках! ⌨️ Получай и наслаждайся быстрой печатью! 🚀",
                 Keyboard = Commands
@@ -255,10 +256,10 @@ namespace AIHackathon
             public string NameCommand = n;
         }
 
-        private async Task GetRatingUser(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
+        private static async Task GetRatingUser(UpdateContext<User> context, IServiceProvider serviceProvider)
         {
             using var db = serviceProvider.GetRequiredService<DataBase>();
-            SendingClient sending = "";
+            SendModel sending = "";
             int rating = 0;
 
             var commandInfo = (from u in db.Users
@@ -277,13 +278,13 @@ namespace AIHackathon
             foreach (var command in commandInfo)
             {
                 sending += $"{NumberToEmodji(rating++)} {command.commandName}";
-                if (command.commandId == updateData.User.CommandId)
+                if (command.commandId == context.User.CommandId)
                     sending += "📍";
                 sending += $"\n└> {command.metric}";
                 sending+="\n";
             }
             if (string.IsNullOrEmpty(sending.Message)) sending.Message = "Таблица рейтинга пока пуста. 😕 Ждем первых участников! ⏳ Скоро здесь появятся лучшие результаты! ✨";
-            await updateData.Send(sending);
+            await context.Send(sending);
         }
 
         private static Dictionary<char, string> _emodji = new()
@@ -300,7 +301,7 @@ namespace AIHackathon
             { '9', "9️⃣" },
         };
 
-        private string NumberToEmodji(int value)
+        private static string NumberToEmodji(int value)
            => string.Join(string.Empty, value.ToString().Select(x => _emodji[x]));
 
         private void GetCSVTable(Func<int, bool> predict, Action<string> writeLine, bool isIgnoreTestUser, IServiceProvider serviceProvider)
@@ -322,7 +323,7 @@ namespace AIHackathon
                 writeLine(line);
         }
 
-        private async Task SendAllUsers(ReceptionClient<User> updateData, string message, IServiceProvider serviceProvider)
+        private async Task SendAllUsers(UpdateContext<User> context, string message, IServiceProvider serviceProvider)
         {
             using var db = serviceProvider.GetRequiredService<DataBase>();
             var tgClient = serviceProvider.GetRequiredService<TgClient<User, DataBase>>();
@@ -330,18 +331,18 @@ namespace AIHackathon
             foreach (var tgUser in db.TgUsers.Include(x => x.User).AsNoTracking().Where(x => !x.User.IsAdmin))
             {
                 if (tgUser.User.IsAdmin || !tgUser.User.IsStarted) continue;
-                await tgClient.Send(tgUser, new SendingClient()
+                await tgClient.Send(new SendModel()
                 {
                     Message = $"✉️ Сообщение от организаторов хакатона\n\n{message}",
                     Keyboard = Commands,
-                    Medias = updateData.Medias
-                }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
+                    Medias = context.Update.Medias
+                }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2), tgUser);
                 counUsers++;
             }
-            await updateData.Send($"Готово отправлено {counUsers} сообщений");
+            await context.Send($"Готово отправлено {counUsers} сообщений");
         }
 
-        private Task SendMetrics(ReceptionClient<User> updateData, IServiceProvider serviceProvider)
+        private Task SendMetrics(UpdateContext<User> context, IServiceProvider serviceProvider)
         {
             StringBuilder stringBuilder = new();
             if (_stateAcceptModels)
@@ -356,7 +357,7 @@ namespace AIHackathon
                 stringBuilder.AppendLine("Прием моделей включен ✅. Можете отправлять ваши модели! 🚀");
             else
                 stringBuilder.AppendLine("Всё спокойно! 😌 Бот готов к работе и ожидает включение приёма работ ✅. В это время Вы можете подготовить модели к отправки или заготовить несколько вариаций обученной модели.");
-            return updateData.Send(stringBuilder);
+            return context.Send(stringBuilder);
         }
     }
 }

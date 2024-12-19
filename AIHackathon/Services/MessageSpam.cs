@@ -15,7 +15,7 @@ namespace AIHackathon.Services
         private readonly SingleMessageQueue<int, User> _singleMessageFilter;
         private readonly BlackList<User> _blackList;
         private readonly ILogger _logger;
-        private Func<ReceptionClient<User>, Task>? _action;
+        private Func<UpdateContext<User>, Task>? _action;
         private readonly TimeSpan _banTime;
 
 #pragma warning disable IDE0290 // Использовать основной конструктор
@@ -44,41 +44,41 @@ namespace AIHackathon.Services
             // TODO автоочистка SpamBroker по таймеру
         }
 
-        public void Init(Func<ReceptionClient<User>, Task> action)
+        public void Init(Func<UpdateContext<User>, Task> action)
         {
             _action = action;
         }
 
-        public async void HandleCommand(ReceptionClient<User> updateData)
+        public async void HandleCommand(UpdateContext<User> context)
         {
-            if (updateData.User.IsAdmin)
+            if (context.User.IsAdmin)
             {
-                await HandleMessage(updateData);
+                await HandleMessage(context);
                 return;
             }
-            if (_blackList.GetSpamState(updateData).IsSpam() ||
-                (await _singleMessageFilter.CheckMessageSpamStatus(updateData, "Пожалуйста, подождите немного! ✨ Ваше сообщение обрабатывается… ⚙️")).IsSpam()
+            if (_blackList.GetSpamState(context).IsSpam() ||
+                (await _singleMessageFilter.CheckMessageSpamStatus(context, "Пожалуйста, подождите немного! ✨ Ваше сообщение обрабатывается… ⚙️")).IsSpam()
                 ) return;
-            var state = await _spamFilter.CheckMessageSpamStatus(updateData, $"Вы превысели {_spamFilter.MaxEvent} сообщений за {ConvertTimeSpan(_spamFilter.TimeWindow)}, выдан бан на {ConvertTimeSpan(_banTime)}");
+            var state = await _spamFilter.CheckMessageSpamStatus(context, $"Вы превысели {_spamFilter.MaxEvent} сообщений за {ConvertTimeSpan(_spamFilter.TimeWindow)}, выдан бан на {ConvertTimeSpan(_banTime)}");
             if (state == StateSpam.ForbiddenFirst)
-                _blackList.AddBlock(updateData.User, _banTime);
+                _blackList.AddBlock(context.User, _banTime);
             if (state.IsSpam()) return;
-            _singleMessageFilter.RegisterEvent(updateData);
-            await HandleMessage(updateData);
-            _singleMessageFilter.UnregisterEvent(updateData);
+            _singleMessageFilter.RegisterEvent(context);
+            await HandleMessage(context);
+            _singleMessageFilter.UnregisterEvent(context);
         }
 
-        private async Task HandleMessage(ReceptionClient<User> updateData)
+        private async Task HandleMessage(UpdateContext<User> context)
         {
             if (_action == null) return;
             try
             {
-                await _action(updateData);
+                await _action(context);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "При обработке сообщения [{message}] у пользователя [{user}] произошла ошибка", updateData, updateData.User);
-                _ = updateData.Send($"Произошла ошибка при обработке сообщения {ex.Message}");
+                _logger.LogError(ex, "При обработке сообщения [{message}] у пользователя [{user}] произошла ошибка", context, context.User);
+                _ = context.Send($"Произошла ошибка при обработке сообщения {ex.Message}");
             }
         }
 

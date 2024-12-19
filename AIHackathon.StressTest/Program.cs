@@ -30,27 +30,28 @@ namespace AIHackathon.StressTest
             BotHandle botHandle = serviceProvider.GetRequiredService<BotHandle>();
             string pathModel = serviceProvider.GetRequiredService<IConfiguration>()["test_pathModel"]!;
             TestClient testClient = new();
-            botHandle.HandleCommand(new ReceptionClient<User>
+            botHandle.HandleCommand(new UpdateContext<User>
                 (
                 testClient,
                 new User(1, true, 1, true, "", ""),
-                (_, _) => Task.CompletedTask,
-                ReceptionType.Message | ReceptionType.Command
-                )
-            {
-                Command = "on"
-            }).Wait();
+                (_, _, _) => Task.CompletedTask,
+                new UpdateModel()
+                {
+                    UpdateType = UpdateType.Message | UpdateType.Command,
+                    Command = "on"
+                }
+                )).Wait();
             async Task<long> MeasureSendMessageTimeAsync(int index)
             {
                 Console.WriteLine($"Запущен: {index}");
                 Stream stream = File.OpenRead(pathModel);
                 TaskCompletionSource completionSource = new();
                 var stopwatch = Stopwatch.StartNew();
-                await botHandle.HandleCommand(new ReceptionClient<User>
+                await botHandle.HandleCommand(new UpdateContext<User>
                     (
                         testClient,
                         new User(1, true, 1, false, "", ""),
-                        (s, _) =>
+                        (s, _, _) =>
                         {
                             if (s.Message?.Contains("ROC AUC") ?? false)
                             {
@@ -58,16 +59,17 @@ namespace AIHackathon.StressTest
                             }
                             return Task.CompletedTask;
                         },
-                        ReceptionType.Media
-                    )
-                {
-                    Medias = 
-                    [
-                        new MediaSource(() => Task.FromResult(stream)){
-                            Name = $"{Path.GetRandomFileName()}.json"
+                        new UpdateModel()
+                        {
+                            UpdateType = UpdateType.Media,
+                            Medias =
+                            [
+                                new MediaSource(() => Task.FromResult(stream)){
+                                    Name = $"{Path.GetRandomFileName()}.json"
+                                }
+                            ]
                         }
-                    ]
-                });
+                    ));
                 await completionSource.Task;
                 stopwatch.Stop();
                 stream.Dispose();
@@ -93,12 +95,12 @@ namespace AIHackathon.StressTest
     {
         int IClientBot<User>.Id => int.MinValue;
 
-        ButtonSearch? IClientBot<User>.GetIndexButton(ReceptionClient<User> client, ButtonsSend buttonsSend)
+        ButtonSearch? IClientBot<User>.GetIndexButton(UpdateContext<User> client, ButtonsSend buttonsSend)
         {
             return null;
         }
 
-        void IClientBot<User>.RegisterUpdateHadler(Action<ReceptionClient<User>> action)
+        void IClientBot<User>.RegisterUpdateHadler(Action<UpdateContext<User>> action)
         {
         }
 
@@ -107,7 +109,7 @@ namespace AIHackathon.StressTest
             return Task.CompletedTask;
         }
 
-        void IClientBot<User>.UnregisterUpdateHadler(Action<ReceptionClient<User>> action)
+        void IClientBot<User>.UnregisterUpdateHadler(Action<UpdateContext<User>> action)
         {
         }
     }

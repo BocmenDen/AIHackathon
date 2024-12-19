@@ -32,18 +32,18 @@ namespace AIHackathon.Services
         private static int currentProcessing = 0;
         public static int CurrentProcessing => currentProcessing;
 
-        public async Task Run(ReceptionClient<User> updateData)
+        public async Task Run(UpdateContext<User> context)
         {
             Interlocked.Increment(ref currentProcessing);
             try
             {
-                SendingClient sendingClient = [];
-                MediaSource mediaSource = updateData.Medias![0];
-                string subPath = Path.Combine(updateData.User.Id.ToString().Replace('-', '_'), $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}_{mediaSource.Name!}");
+                SendModel sendingClient = [];
+                MediaSource mediaSource = context.Update.Medias![0];
+                string subPath = Path.Combine(context.User.Id.ToString().Replace('-', '_'), $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}_{mediaSource.Name!}");
                 string pathFile = Path.Combine(_directoryFiles, subPath);
 
                 sendingClient.Message = "Загрузка началась! ⬇️ Подождите немного... ⏳";
-                await updateData.Send(sendingClient);
+                await context.Send(sendingClient);
 
                 using (var stream = await mediaSource.GetStream())
                 {
@@ -55,29 +55,29 @@ namespace AIHackathon.Services
                 }
 
                 sendingClient.Message = "Погоди немного! ⏳ Сейчас я оцениваю модель... 🤔 Результаты будут скоро! \n✨";
-                await updateData.Send(sendingClient);
-                var metricTask = Load(pathFile, updateData.Message);
+                await context.Send(sendingClient);
+                var metricTask = Load(pathFile, context.Update.Message);
                 while (!metricTask.IsCompleted)
                 {
                     sendingClient.Message += "✨";
-                    await updateData.Send(sendingClient);
+                    await context.Send(sendingClient);
                     Thread.Sleep(500);
                 }
                 var metric = await metricTask;
-                metric.UserId = updateData.User.Id;
+                metric.UserId = context.User.Id;
                 metric.PathFile = subPath;
                 sendingClient.Message = "Сохраняю результаты... 💾 Почти готово! ⏳";
-                await updateData.Send(sendingClient);
+                await context.Send(sendingClient);
                 using var db = _serviceProvider.GetRequiredService<DataBase>();
                 db.Metrics.Add(metric);
                 await db.SaveChangesAsync();
                 sendingClient.Message = metric.ToString();
-                await updateData.Send(sendingClient);
-                logger.LogInformation("Результаты оценивания модели пользователя [{user}]: {result}", updateData.User, metric);
+                await context.Send(sendingClient);
+                logger.LogInformation("Результаты оценивания модели пользователя [{user}]: {result}", context.User, metric);
             }
             catch(Exception e)
             {
-                await updateData.Send("Произошла неизвестная ошибка при обработке вашей модели");
+                await context.Send("Произошла неизвестная ошибка при обработке вашей модели");
                 logger.LogError(e, "Произошла ошибка при обработке модели");
             }
             finally
