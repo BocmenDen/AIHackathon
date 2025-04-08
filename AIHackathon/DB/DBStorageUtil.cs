@@ -1,4 +1,5 @@
-﻿using AIHackathon.Utils;
+﻿using AIHackathon.DB.Models;
+using AIHackathon.Utils;
 using BotCore.Services;
 using Newtonsoft.Json;
 

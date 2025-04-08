@@ -3,7 +3,7 @@ using AIHackathon.Pages.Register;
 
 namespace AIHackathon.Pages
 {
-    [Page(Key)]
+    [PageCacheable(Key)]
     public class StartPage(HandlePageRouter pageRouter) : PageBase
     {
         public const string Key = "StartPage";

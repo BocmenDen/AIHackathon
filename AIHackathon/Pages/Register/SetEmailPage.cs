@@ -1,28 +1,20 @@
-﻿using AIHackathon.DB;
-using BotCore.Services;
+﻿using AIHackathon.DB.Models;
 using System.Text.RegularExpressions;
 
 namespace AIHackathon.Pages.Register
 {
     [PageCacheable(Key)]
-    public partial class SetEmailPage(ConditionalPooledObjectProvider<DataBase> db, HandlePageRouter pageRouter) : SetValuePageBase(pageRouter)
+    public partial class SetEmailPage(HandlePageRouter pageRouter) : SetValuePageBase(pageRouter)
     {
         public const string Key = "SetEmailPage";
 
         protected override string MessageStart => "Пожалуйста, введите вашу почту";
         protected override string MessageNotCorrect => "Введённые данные почты не являются корректными";
 
-        protected override bool IsCorrectValue(string value) => RegexEmail().IsMatch(value);
+        protected override bool IsCorrectValue(string? value) => value is not null && RegexEmail().IsMatch(value);
+        protected override string? CorrectValue(string? value) => value?.ToLower();
 
-        protected override Task SaveValue(User user, string value)
-        {
-            return db.TakeObjectAsync(x =>
-            {
-                user.Email = value;
-                x.Users.Update(user);
-                return x.SaveChangesAsync();
-            });
-        }
+        protected override void SaveValue(User user, string? value) => RegisterModel.Email = value;
 
         [GeneratedRegex("^\\S+@\\S+\\.\\S+$")]
         private static partial Regex RegexEmail();

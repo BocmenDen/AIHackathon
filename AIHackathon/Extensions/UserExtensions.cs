@@ -1,4 +1,4 @@
-﻿using AIHackathon.DB;
+﻿using AIHackathon.DB.Models;
 
 namespace AIHackathon.Extensions
 {
@@ -12,13 +12,12 @@ namespace AIHackathon.Extensions
 📌 Участник #{0}
 👤 Telegram: @{1}
 📝 Фамилия: {2}
-✉️ Email: {3}
-📞 Телефон: {4}
-""", user.Id, user.TgChat.Username, user.Surname ?? NotSetDataMessage, user.Email ?? NotSetDataMessage, user.PhoneNumber ?? NotSetDataMessage
+📝 Имя: {3}
+📝 Отчество: {4}
+✉️ Email: {5}
+📞 Телефон: {6}
+👥 Команда: {7}
+""", user.Id, user.TgChat.Username, user.Participant?.Surname ?? NotSetDataMessage, user.Participant?.Name ?? NotSetDataMessage, user.Participant?.MiddleName ?? NotSetDataMessage, user.Participant?.Email ?? NotSetDataMessage, user.Participant?.Phone ?? NotSetDataMessage, user.Participant?.Command?.Name ?? NotSetDataMessage
 );
-
-        public static bool IsRegister(User user) => !string.IsNullOrEmpty(user.Surname) &&
-                                                    !string.IsNullOrEmpty(user.Email) &&
-                                                    !string.IsNullOrEmpty(user.PhoneNumber);
     }
 }

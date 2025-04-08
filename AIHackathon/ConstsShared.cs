@@ -1,10 +1,27 @@
-﻿namespace AIHackathon
+﻿using BotCore.FilterRouter.Attributes;
+
+namespace AIHackathon
 {
     public static class ConstsShared
     {
+        public const string ResourceButtonsMain = nameof(ResourceButtonsMain);
+
         public readonly static ButtonSend ButtonYes = "Да";
         public readonly static ButtonSend ButtonNo = "Нет";
 
         public readonly static string DefaultRegion = "RU";
+
+        public readonly static ButtonSend ButtonUpdate = "🔄";
+        public readonly static ButtonsSend ButtonsUpdate = new([[ButtonUpdate]]);
+
+        public readonly static ButtonSend ButtonOpenMainPage = "🏠 Главная";
+        public readonly static ButtonSend ButtonOpenRatingPage = "🌟 Рейтинг";
+        public readonly static ButtonSend ButtonOpenInfo = "ℹ️ Справка";
+        public readonly static ButtonSend ButtonOpenNews = "📰 Новости";
+
+        [ResourceKey(ResourceButtonsMain)]
+        public readonly static ButtonsSend ButtonsMain = new([[ButtonOpenRatingPage, ButtonOpenMainPage], [ButtonOpenInfo, ButtonOpenNews]]);
+
+        public static string GetPathResource(string subPath) => Path.GetFullPath(Path.Combine("Resources", subPath));
     }
 }

@@ -16,7 +16,7 @@ namespace AIHackathon.Services
 
         public async Task HandleNewUpdateContext(TContext context)
         {
-            if (context.Update.UpdateType.HasFlag(UpdateType.Message))
+            if (context.Update.UpdateType.HasFlag(UpdateType.Message) || context.Update.UpdateType.HasFlag(UpdateType.Media))
             {
                 if (usersEditMessage.TryGetValue(context.User.Id, out object? lastMessage))
                     await context.Reply([new KeyValuePair<string, object>(BotCore.Tg.TgClient.KeyMessagesToEdit, lastMessage)]);
@@ -36,7 +36,7 @@ namespace AIHackathon.Services
                 else
                 {
                     await context.Reply(sendModel);
-                    if (!sendModel.IsEmpty && sendModel.ContainsKey(BotCore.Tg.TgClient.KeyMessagesToEdit))
+                    if (!sendModel.IsEmpty && sendModel.Keyboard is null && sendModel.ContainsKey(BotCore.Tg.TgClient.KeyMessagesToEdit))
                         usersEditMessage[context.User.Id] = sendModel[BotCore.Tg.TgClient.KeyMessagesToEdit];
                 }
             });

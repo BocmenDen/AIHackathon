@@ -1,4 +1,5 @@
 ﻿using AIHackathon.DB;
+using AIHackathon.DB.Models;
 using AIHackathon.Extensions;
 using AIHackathon.Services;
 using BotCore;
@@ -7,6 +8,7 @@ using BotCore.FilterRouter.Extensions;
 using BotCore.Interfaces;
 using BotCore.PageRouter;
 using BotCore.Tg;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,17 +32,21 @@ namespace AIHackathon
                     Assembly.GetAssembly(typeof(HandlePageRouter))
 
                 )
-                .ConfigureServices((b, s) =>
+                .ConfigureServices((context, services) =>
                 {
-                    s.AddMemoryCache();
+                    services.AddMemoryCache();
 
                     // Говорим откуда читать параметры
-                    s.Configure<TgClientOptions>(b.Configuration.GetSection(nameof(TgClientOptions)));
-                    s.Configure<DataBaseOptions>(b.Configuration.GetSection(nameof(DataBaseOptions)));
-                    s.Configure<PooledObjectProviderOptions<DataBase>>(b.Configuration.GetSection(nameof(DataBaseOptions)));
+                    services.Configure<TgClientOptions>(context.Configuration.GetSection(nameof(TgClientOptions)));
+                    services.Configure<DataBaseOptions>(context.Configuration.GetSection(nameof(DataBaseOptions)));
+                    services.Configure<PooledObjectProviderOptions<DataBase>>(context.Configuration.GetSection(nameof(DataBaseOptions)));
+                    services.Configure<Settings>(context.Configuration.GetSection(nameof(Settings)));
                 })
                 .RegisterFiltersRouterAuto<User, UpdateContext>() // Регистрация фильтров
-                .RegisterDBContextOptions((s, _, b) => b.UseSqlite($"Data Source={s.GetRequiredService<IOptions<DataBaseOptions>>().Value.GetPathOrDefault()}"));
+                .RegisterDBContextOptions((s, _, b) =>
+                {
+                    b.UseSqlite($"Data Source={s.GetRequiredService<IOptions<DataBaseOptions>>().Value.GetPathOrDefault()}");
+                });
 
         static void Main()
         {
@@ -50,6 +56,7 @@ namespace AIHackathon
                         .Build();
 
             var spamFilter = host.Services.GetRequiredService<MessageSpam>();
+            var viewErrorsLayer = host.Services.GetRequiredService<LayerViewError>();
             var editOldMessage = host.Services.GetRequiredService<LayerOldEditMessage<User, UpdateContext>>();
             var filterRouting = host.Services.GetRequiredService<HandleFilterRouter>();
             var pageRouting = host.Services.GetRequiredService<HandlePageRouter>();
@@ -58,11 +65,74 @@ namespace AIHackathon
                 if (client is IClientBot<User, UpdateContext> castClient)
                     castClient.Update += spamFilter.HandleNewUpdateContext;
 
-            spamFilter.Update += editOldMessage.HandleNewUpdateContext;
+            spamFilter.Update += viewErrorsLayer.HandleNewUpdateContext;
+            viewErrorsLayer.Update += editOldMessage.HandleNewUpdateContext;
             editOldMessage.Update += filterRouting.HandleNewUpdateContext;
             filterRouting.Update += pageRouting.HandleNewUpdateContext;
             pageRouting.Update += (context) => context.ReplyBug("В данный момент у вас не открыта страница 📄.");
-
+#if DEBUGTEST
+            var db = host.Services.GetRequiredService<DataBase>();
+            var command = new Command()
+            {
+                Name = "Привет, мир!"
+            };
+            db.Commands.Add(command);
+            db.Participants.Add(new Participant()
+            {
+                Surname = "Иванов",
+                Name = "Денис",
+                MiddleName = "Дмитриевич",
+                Email = "test@test.com",
+                Phone = "+77777777777",
+                Command = command
+            });
+            db.Participants.Add(new Participant()
+            {
+                Surname = "Иванов2",
+                Name = "Денис",
+                MiddleName = "Дмитриевич",
+                Email = "test@test.com",
+                Phone = "+77777777777",
+                Command = command
+            });
+            for (int i = 0; i < 100; i++)
+            {
+                var tmpCommand = new Command()
+                {
+                    Name = Path.GetRandomFileName()
+                };
+                db.Participants.Add(new Participant()
+                {
+                    Surname = Path.GetRandomFileName(),
+                    Name = "Денис",
+                    MiddleName = "Дмитриевич",
+                    Email = "test@test.com",
+                    Phone = "+77777777777",
+                    Command = tmpCommand
+                });
+                var particantTmp = new Participant()
+                {
+                    Surname = Path.GetRandomFileName(),
+                    Name = "Денис",
+                    MiddleName = "Дмитриевич",
+                    Email = "test@test.com",
+                    Phone = "+77777777777",
+                    Command = tmpCommand
+                };
+                db.Participants.Add(particantTmp);
+                db.SaveChanges();
+                db.Metrics.Add(new MetricParticipant()
+                {
+                    ParticipantId = particantTmp.Id,
+                    Library = "L1",
+                    DateTime = DateTime.Now.AddMinutes(-i),
+                    PathFile = "Test.txt",
+                    Accuracy = 0.2
+                });
+            }
+            db.SaveChanges();
+            db.ChangeTracker.Clear();
+#endif
             host.Run();
         }
     }
