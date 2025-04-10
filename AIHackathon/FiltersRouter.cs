@@ -4,7 +4,9 @@
 
 using AIHackathon.Attributes;
 using AIHackathon.Extensions;
+using AIHackathon.Models;
 using AIHackathon.Pages;
+using AIHackathon.Services;
 using BotCore.Tg;
 using Microsoft.Extensions.Options;
 
@@ -29,7 +31,7 @@ namespace AIHackathon
 
         [ButtonsFilter(ConstsShared.ResourceButtonsMain)]
         [IsRegisterFilter]
-        private static Task HandleMainButtons(UpdateContext context, ButtonSearch? buttonSearch, HandlePageRouter pageRouter, IOptions<Settings> options)
+        private static Task HandleMainButtons(UpdateContext context, ButtonSearch? buttonSearch, PageRouterHelper pageRouter, IOptions<Settings> options)
         {
             var button = buttonSearch!.Value.Button;
             if (button == ConstsShared.ButtonOpenMainPage)
@@ -40,11 +42,24 @@ namespace AIHackathon
                 return GetNewsInfo(context, options.Value);
             return GetInfo(context);
         }
-
         [IsRegisterFilter]
         [MessageTypeFilter(UpdateType.Media)]
-        private static Task TaskHandleMediaFile(UpdateContext context, HandlePageRouter pageRouter)
-            => pageRouter.Navigate(context, HandleMediaPage.Key);
+        private static Task HandleMediaFile(UpdateContext context, PageRouterHelper pageRouter, IOptions<Settings> options)
+        {
+            if (context.Update.Medias!.Count != 1)
+                return context.Reply(new SendModel()
+                {
+                    Message = "Для тестирования вашей модели необходимо прислать только один файл с обученной моделью!",
+                    Medias = [ConstsShared.MediaError]
+                });
+            if (!options.Value.ValidTypesHandleMediaFile.Contains(context.Update.Medias[0].Type))
+                return context.Reply(new SendModel()
+                {
+                    Message =$"Тип отправленного файла на оценивавшие модели не поддерживается, узнать об поддерживаемых библиотеках и форматах моделей можно в разделе \"{ConstsShared.ButtonOpenInfo}\"",
+                    Medias = [ConstsShared.MediaError]
+                });
+            return pageRouter.Navigate(context, HandleMediaPage.Key);
+        }
 
         private const string GetInfoPathFile = "Info.txt";
         private readonly static MediaSource GetInfoPMedia = MediaSource.FromUri("https://media1.tenor.com/m/aL7FPRcLg0MAAAAC/no.gif");

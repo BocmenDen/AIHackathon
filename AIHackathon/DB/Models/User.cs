@@ -1,12 +1,12 @@
 ﻿using BotCore.Interfaces;
 using BotCore.Tg;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Telegram.Bot.Types;
 
 namespace AIHackathon.DB.Models
 {
-    public class User: IUser, IUserTgExtension
+    public class User : IUser, IUserTgExtension
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

@@ -1,10 +1,10 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.DB;
 using AIHackathon.DB.Models;
+using AIHackathon.Models;
 using BotCore.Interfaces;
 using BotCore.Services;
 using BotCore.Tg;
-using BotCoreGenerator.PageRouter.Mirror;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text;
@@ -54,10 +54,9 @@ namespace AIHackathon.Pages
             var lastPage = countsCommand / options.Value.CountCommandsInPage;
             if (_indexPage > lastPage)
                 _indexPage = lastPage;
-            else if(_indexPage <  0)
+            else if (_indexPage <  0)
                 _indexPage = 0;
             var commandsRating = dbObj.GetCommandsRating().Skip(_indexPage * options.Value.CountCommandsInPage).Take(options.Value.CountCommandsInPage).AsAsyncEnumerable();
-            db.Return(dbObj);
             StringBuilder stringBuilder = new();
             stringBuilder.AppendLine($"📅 Актуально на: {DateTime.Now}");
             stringBuilder.AppendLine($"🏁 Гонка за лидерством — {_indexPage + 1} страница");
@@ -70,6 +69,7 @@ namespace AIHackathon.Pages
                 stringBuilder.AppendLine($"{NumberToEmodji(elem.Rating)} {(elem.SubjectId == context.User.Participant!.CommandId ? "🎯" : string.Empty)} {elem.Subject.Name}");
                 stringBuilder.AppendLine($"└> {elem.Metric}");
             }
+            db.Return(dbObj);
             bool isBack = _indexPage > 0;
             bool isNext = ((_indexPage + 1) * options.Value.CountCommandsInPage) < countsCommand;
             List<ButtonSend> sendButtons = [];

@@ -1,6 +1,7 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.DB;
 using AIHackathon.DB.Models;
+using AIHackathon.Services;
 using BotCore.Interfaces;
 using BotCore.PageRouter.Interfaces;
 using BotCore.PageRouter.Models;
@@ -9,12 +10,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using System.Reflection;
-using System.Threading;
 
 namespace AIHackathon.Pages.Register
 {
     [PageCacheable(Key)]
-    public class RegisterStartPage(ConditionalPooledObjectProvider<DataBase> db, HandlePageRouter pageRouter, IMemoryCache memoryCache) : PageBase, IBindStorageModel<SharedRegisterModel>, IGetCacheOptions
+    public class RegisterStartPage(ConditionalPooledObjectProvider<DataBase> db, PageRouterHelper pageRouter, IMemoryCache memoryCache) : PageBase, IBindStorageModel<SharedRegisterModel>, IGetCacheOptions
     {
         public const string Key = "RegisterStartPage";
         public readonly static ButtonSend ButtonBackRegisterMain = "⬅️ Открыть регистрацию";
@@ -52,7 +52,7 @@ namespace AIHackathon.Pages.Register
 
         public override async Task HandleNewUpdateContext(UpdateContext context)
         {
-            if(_lastSendButtons == null)
+            if (_lastSendButtons == null)
                 await LoadState();
             var buttonsSearch = context.BotFunctions.GetIndexButton(context.Update, _lastSendButtons!);
             if (buttonsSearch != null)
@@ -146,7 +146,7 @@ namespace AIHackathon.Pages.Register
             {
                 _participant = await db.TakeObjectAsync(x =>
                 {
-                   return x.Participants.Include(x => x.Command).FirstOrDefaultAsync(m => m.Surname == _model.Surname && m.Email == _model.Email && m.Phone == _model.Phone);
+                    return x.Participants.Include(x => x.Command).FirstOrDefaultAsync(m => m.Surname == _model.Surname && m.Email == _model.Email && m.Phone == _model.Phone);
                 });
                 if (_participant != null)
                     buttons.Add(ButtonAutorization);

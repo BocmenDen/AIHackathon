@@ -2,7 +2,7 @@
 
 namespace AIHackathon.DB.Models
 {
-    public class RatingInfo<TSubject> where TSubject: class, new()
+    public class RatingInfo<TSubject> where TSubject : class, new()
     {
         [ForeignKey(nameof(SubjectId))]
         public TSubject Subject { get; set; } = null!;

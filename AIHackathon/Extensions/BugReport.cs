@@ -15,17 +15,25 @@ namespace AIHackathon.Extensions
         {
             string relativePath = filePath[filePath.LastIndexOf(nameof(AIHackathon))..].Replace("\\", "/");
 
-            return context.Reply($"[{DateTime.UtcNow}] Извините произошла неизвестная ошибка: {message}\n\nДанные пользователя:\n{context.User.GetInfoUser()}\n\nМесто возникновения ошибки: https://github.com/BocmenDen/AIHackathon/blob/main/{relativePath}#L{lineNumber - 1}\n\nПожалуйста, напишите в TG/VK: @bocmenden и опишите действия, которые привели, а также пришлите данное сообщение для решения проблем");
+            return context.Reply(new SendModel()
+            {
+                Message = GetMessageBug(context, message, $"Место возникновения ошибки: https://github.com/BocmenDen/AIHackathon/blob/main/{relativePath}#L{lineNumber - 1}"),
+                Medias = [ConstsShared.MediaError]
+            });
         }
 
         public static Task ReplyBug(this UpdateContext context, Exception exception)
         {
-
+            var info = FormatExceptionWithGitHubLink(exception);
             return context.Reply(new SendModel()
             {
-                Message = $"[{DateTime.UtcNow}] Извините произошла неизвестная ошибка: {exception.Message}\n\nДанные пользователя:\n{context.User.GetInfoUser()}\n\n{FormatExceptionWithGitHubLink(exception)}\n\nПожалуйста, напишите в TG/VK: @bocmenden и опишите действия, которые привели, а также пришлите данное сообщение для решения проблем"
+                Message = GetMessageBug(context, exception.Message, info),
+                Medias = [ConstsShared.MediaError]
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
         }
+
+        private static string GetMessageBug(BotCore.Interfaces.IUpdateContext<DB.Models.User> context, string? message, string info)
+            => $"[{DateTime.UtcNow}] Извините произошла ошибка: {message}\n\nДанные пользователя:\n{context.User.GetInfoUser()}\n\n{info}\n\nПожалуйста, напишите в TG/VK: @bocmenden и опишите действия, которые привели к этому, а также пришлите данное сообщение для решения проблем";
 
         private static string FormatExceptionWithGitHubLink(Exception ex)
         {
@@ -46,7 +54,7 @@ namespace AIHackathon.Extensions
                 string? fileName = frame.GetFileName();
                 if (fileName is not null)
                 {
-                    sb.Append(":строка ");
+                    sb.Append(": строка ");
                     sb.Append(frame.GetFileLineNumber());
                 }
                 sb.Append("](");

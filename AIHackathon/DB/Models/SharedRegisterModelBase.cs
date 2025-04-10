@@ -15,7 +15,7 @@
         = "+77777777777";
 #endif
     }
-    public class SharedRegisterModel: SharedRegisterModelBase
+    public class SharedRegisterModel : SharedRegisterModelBase
     {
         public string? Value { get; set; }
     }

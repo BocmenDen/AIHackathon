@@ -1,7 +1,8 @@
-﻿using BotCore.Interfaces;
+﻿using AIHackathon.Models;
+using BotCore.Interfaces;
 using BotCore.SpamBroker;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AIHackathon.Services
 {
@@ -16,26 +17,26 @@ namespace AIHackathon.Services
         public event Func<TContext, Task>? Update;
         private readonly TimeSpan _banTime;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0290:Использовать основной конструктор", Justification = "Нужно бы завести таймер для автоочистки буферов")]
         public MessageSpam(
-            IConfiguration configuration,
             ILogger<SpamBroker<long, TUser>> loggerSpam,
             ILogger<SingleMessageQueue<long, TUser>> loggerSingleSpam,
-            ILogger<BlackList<TUser>> blackListLogger
+            ILogger<BlackList<TUser>> blackListLogger,
+            IOptions<MessageSpamOptions>? options = null
             )
         {
+            var messageSpamOptions = options?.Value ?? new MessageSpamOptions();
             _singleMessageFilter = new(
                 (u) => u.User.Id,
                 loggerSingleSpam
             );
             _spamFilter = new(
                 (u) => u.User.Id,
-                configuration.GetValue<int?>("spam_countMessage") ?? 5,
-                configuration.GetValue<TimeSpan?>("spam_timeWindow") ?? TimeSpan.FromSeconds(3),
+                messageSpamOptions.CountMessage,
+                messageSpamOptions.IntervalMessages,
                 loggerSpam
             );
             _blackList = new(blackListLogger);
-            _banTime=configuration.GetValue<TimeSpan?>("spam_timeBan") ?? TimeSpan.FromMinutes(5);
+            _banTime=messageSpamOptions.IntervalBan;
         }
 
         public async Task HandleNewUpdateContext(TContext updateData)

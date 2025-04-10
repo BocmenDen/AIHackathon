@@ -1,6 +1,7 @@
 ﻿using AIHackathon.DB;
 using AIHackathon.DB.Models;
 using AIHackathon.Extensions;
+using AIHackathon.Models;
 using AIHackathon.Services;
 using BotCore;
 using BotCore.EfDb;
@@ -8,7 +9,6 @@ using BotCore.FilterRouter.Extensions;
 using BotCore.Interfaces;
 using BotCore.PageRouter;
 using BotCore.Tg;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +41,7 @@ namespace AIHackathon
                     services.Configure<DataBaseOptions>(context.Configuration.GetSection(nameof(DataBaseOptions)));
                     services.Configure<PooledObjectProviderOptions<DataBase>>(context.Configuration.GetSection(nameof(DataBaseOptions)));
                     services.Configure<Settings>(context.Configuration.GetSection(nameof(Settings)));
+                    services.Configure<MessageSpamOptions>(context.Configuration.GetSection(nameof(MessageSpamOptions)));
                 })
                 .RegisterFiltersRouterAuto<User, UpdateContext>() // Регистрация фильтров
                 .RegisterDBContextOptions((s, _, b) =>

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AIHackathon.DB.Models
 {
-    public class Participant: SharedRegisterModelBase
+    public class Participant : SharedRegisterModelBase
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

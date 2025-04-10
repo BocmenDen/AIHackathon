@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace AIHackathon.Pages.Register
 {
     [PageCacheable(Key)]
-    public partial class SetEmailPage(HandlePageRouter pageRouter) : SetValuePageBase(pageRouter)
+    public partial class SetEmailPage : SetValuePageBase
     {
         public const string Key = "SetEmailPage";
 

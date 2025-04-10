@@ -3,7 +3,7 @@
 namespace AIHackathon.Pages
 {
     [PageCacheable(Key)]
-    public class HandleMediaPage: PageBase
+    public class HandleMediaPage : PageBase
     {
         public const string Key = "HandleMediaPage";
     }

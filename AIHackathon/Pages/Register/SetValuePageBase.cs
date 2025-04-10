@@ -1,6 +1,7 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.DB.Models;
 using AIHackathon.Extensions;
+using AIHackathon.Services;
 using BotCore.PageRouter.Interfaces;
 using BotCore.PageRouter.Models;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,17 +10,17 @@ using System.Reflection;
 
 namespace AIHackathon.Pages.Register
 {
-    public abstract partial class SetValuePageBase(HandlePageRouter pageRouter) : PageBase, IBindStorageModel<SharedRegisterModel>, IBindService<IMemoryCache>, IGetCacheOptions
+    public abstract partial class SetValuePageBase : PageBase, IBindStorageModel<SharedRegisterModel>, IBindService<IMemoryCache>, IBindService<PageRouterHelper>, IGetCacheOptions
     {
         private static readonly ButtonsSend Buttons = new([[ConstsShared.ButtonYes], [ConstsShared.ButtonNo], [RegisterStartPage.ButtonBackRegisterMain]]);
         private readonly static ButtonsSend ButtonsBack = new([[RegisterStartPage.ButtonBackRegisterMain]]);
         private readonly static MediaSource MediaInput = MediaSource.FromUri("https://media1.tenor.com/m/5O48nhgNvjIAAAAC/typing-cat.gif");
         private readonly static MediaSource MediaIsOk = MediaSource.FromUri("https://media1.tenor.com/m/NpxX43CMKcsAAAAC/omni-man-omni-man-are-you-sure.gif");
-        private readonly static MediaSource MediaError = MediaSource.FromUri("https://media.tenor.com/8ND8TbjZqh0AAAAi/error.gif");
 
         private StorageModel<SharedRegisterModel> _storageModel = null!;
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private IMemoryCache _memoryCache = null!;
+        private PageRouterHelper _pageRouter = null!;
 
         protected abstract string MessageStart { get; }
         protected abstract string MessageNotCorrect { get; }
@@ -55,7 +56,7 @@ namespace AIHackathon.Pages.Register
                 if (await IsNotCorrectValue(context, RegisterModel.Value)) return;
                 SaveValue(context.User, RegisterModel.Value);
                 await _storageModel.Save();
-                await pageRouter.Navigate(context, RegisterStartPage.Key);
+                await _pageRouter.Navigate(context, RegisterStartPage.Key);
                 return;
             }
             if (buttonSearch.Button == ConstsShared.ButtonNo)
@@ -65,7 +66,7 @@ namespace AIHackathon.Pages.Register
             }
             if (buttonSearch.Button == RegisterStartPage.ButtonBackRegisterMain)
             {
-                await pageRouter.Navigate(context, RegisterStartPage.Key);
+                await _pageRouter.Navigate(context, RegisterStartPage.Key);
                 return;
             }
             await context.ReplyBug("Сработал метод нажатия на кнопку, но не был найден ни один из обработчиков");
@@ -78,7 +79,7 @@ namespace AIHackathon.Pages.Register
             {
                 Message = $"{MessageNotCorrect}\n\n{MessageStart}",
                 Inline = ButtonsBack,
-                Medias = [MediaError]
+                Medias = [ConstsShared.MediaError]
             });
             return true;
         }
@@ -93,6 +94,8 @@ namespace AIHackathon.Pages.Register
             Inline = ButtonsBack,
             Medias = [MediaInput]
         });
+
+        public void BindService(PageRouterHelper service) => _pageRouter = service;
 
         public void BindService(IMemoryCache service) => _memoryCache = service;
         protected override async Task OnExit(UpdateContext context)

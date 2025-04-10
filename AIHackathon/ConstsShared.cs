@@ -22,6 +22,8 @@ namespace AIHackathon
         [ResourceKey(ResourceButtonsMain)]
         public readonly static ButtonsSend ButtonsMain = new([[ButtonOpenRatingPage, ButtonOpenMainPage], [ButtonOpenInfo, ButtonOpenNews]]);
 
+        public readonly static MediaSource MediaError = MediaSource.FromUri("https://media.tenor.com/8ND8TbjZqh0AAAAi/error.gif");
+
         public static string GetPathResource(string subPath) => Path.GetFullPath(Path.Combine("Resources", subPath));
     }
 }

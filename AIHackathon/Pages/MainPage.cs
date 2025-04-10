@@ -1,6 +1,6 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.DB;
-using AIHackathon.DB.Models;
+using AIHackathon.Models;
 using BotCore.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -9,7 +9,7 @@ using System.Text;
 namespace AIHackathon.Pages
 {
     [PageCacheable(Key)]
-    public class MainPage(ConditionalPooledObjectProvider<DataBase> db, IOptions<Settings> settings) : PageBase
+    public class MainPage(ConditionalPooledObjectProvider<DataBase> dbObj, IOptions<Settings> settings) : PageBase
     {
         public const string Key = "MainPage";
 
@@ -17,8 +17,10 @@ namespace AIHackathon.Pages
 
         public override async Task HandleNewUpdateContext(UpdateContext context)
         {
-            var infoCommand = await db.TakeObjectAsync(db => db.GetCommandsRating().FirstOrDefaultAsync(x => x.SubjectId == context.User.Participant!.CommandId));
-            var infoParticants = db.TakeObject(db => db.GetParticipantsRating().Where(x => x.Subject.CommandId == context.User.Participant!.CommandId).AsAsyncEnumerable());
+            var db = dbObj.Get();
+            var infoCommand = await db.GetCommandsRating().FirstOrDefaultAsync(x => x.SubjectId == context.User.Participant!.CommandId);
+            var infoParticants = await db.GetParticipantsRating().Where(x => x.Subject.CommandId == context.User.Participant!.CommandId).ToListAsync();
+            dbObj.Return(db);
             if (infoCommand == null) return;
             SendModel sendModel = new()
             {
@@ -33,7 +35,7 @@ namespace AIHackathon.Pages
             stringBuilder.AppendLine($"└> использовано попыток {infoCommand.CountMetric} из {settings.Value.MaxCountMetricsCommand}");
             stringBuilder.AppendLine();
 
-            await foreach (var participantCommand in infoParticants)
+            foreach (var participantCommand in infoParticants)
             {
                 stringBuilder.AppendLine($"{participantCommand.Subject.Surname} {participantCommand.Subject.Name} {participantCommand.Subject.MiddleName}");
                 stringBuilder.AppendLine($"├> рейтинг участника {participantCommand.Rating}");

@@ -1,8 +1,7 @@
 ﻿global using BotCore.Attributes;
 global using BotCore.Models;
-global using CommandFilter = BotCore.FilterRouter.Attributes.CommandFilterAttribute<AIHackathon.DB.Models.User>;
 global using ButtonsFilter = BotCore.FilterRouter.Attributes.ButtonsFilterAttribute<AIHackathon.DB.Models.User>;
-global using MessageTypeFilter = BotCore.FilterRouter.Attributes.MessageTypeFilterAttribute<AIHackathon.DB.Models.User>;
+global using CommandFilter = BotCore.FilterRouter.Attributes.CommandFilterAttribute<AIHackathon.DB.Models.User>;
 global using HandleFilterRouter = BotCore.FilterRouter.HandleFilterRouter<AIHackathon.DB.Models.User, BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>>;
 global using HandlePageRouter = BotCore.PageRouter.HandlePageRouter<AIHackathon.DB.Models.User, BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>, string>;
 global using IDBUserPageKey = BotCore.PageRouter.Interfaces.IDBUserPageKey<AIHackathon.DB.Models.User, string>;
@@ -11,6 +10,6 @@ global using IDBUserPageParameter = BotCore.PageRouter.Interfaces.IDBUserPagePar
 global using IPage = BotCore.PageRouter.Interfaces.IPage<AIHackathon.DB.Models.User, BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>>;
 global using IPageOnExit = BotCore.PageRouter.Interfaces.IPageOnExit<AIHackathon.DB.Models.User, BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>>;
 global using MessageSpam = AIHackathon.Services.MessageSpam<AIHackathon.DB.Models.User, BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>>;
-global using PageAttribute = BotCore.PageRouter.Attributes.PageAttribute<string>;
+global using MessageTypeFilter = BotCore.FilterRouter.Attributes.MessageTypeFilterAttribute<AIHackathon.DB.Models.User>;
 global using PageCacheableAttribute = BotCore.PageRouter.Attributes.PageCacheableAttribute<string>;
 global using UpdateContext = BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>;

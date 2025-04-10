@@ -1,10 +1,11 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.Pages.Register;
+using AIHackathon.Services;
 
 namespace AIHackathon.Pages
 {
     [PageCacheable(Key)]
-    public class StartPage(HandlePageRouter pageRouter) : PageBase
+    public class StartPage(PageRouterHelper pageRouter) : PageBase
     {
         public const string Key = "StartPage";
 

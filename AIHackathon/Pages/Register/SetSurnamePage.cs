@@ -4,7 +4,7 @@ using System.Globalization;
 namespace AIHackathon.Pages.Register
 {
     [PageCacheable(Key)]
-    public partial class SetSurnamePage(HandlePageRouter pageRouter) : SetValuePageBase(pageRouter)
+    public partial class SetSurnamePage : SetValuePageBase
     {
         public const string Key = "SetSurnamePage";
 
