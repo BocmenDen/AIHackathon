@@ -100,23 +100,23 @@ namespace AIHackathon
             {
                 var tmpCommand = new Command()
                 {
-                    Name = Path.GetRandomFileName()
+                    Name = $"Отладочный {i}"
                 };
                 db.Participants.Add(new Participant()
                 {
-                    Surname = Path.GetRandomFileName(),
+                    Surname = "Иванов",
                     Name = "Денис",
                     MiddleName = "Дмитриевич",
-                    Email = "test@test.com",
+                    Email =  $"1p{i}@test.com",
                     Phone = "+77777777777",
                     Command = tmpCommand
                 });
                 var particantTmp = new Participant()
                 {
-                    Surname = Path.GetRandomFileName(),
+                    Surname =  "Иванов",
                     Name = "Денис",
                     MiddleName = "Дмитриевич",
-                    Email = "test@test.com",
+                    Email = $"2p{i}@test.com",
                     Phone = "+77777777777",
                     Command = tmpCommand
                 };
@@ -128,7 +128,8 @@ namespace AIHackathon
                     Library = "L1",
                     DateTime = DateTime.Now.AddMinutes(-i),
                     PathFile = "Test.txt",
-                    Accuracy = 0.2
+                    Accuracy = Random.Shared.NextDouble() / 2,
+                    FileHash = string.Empty
                 });
             }
             db.SaveChanges();

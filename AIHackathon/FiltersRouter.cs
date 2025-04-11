@@ -3,10 +3,12 @@
 #pragma warning disable IDE0051 // Удалите неиспользуемые закрытые члены
 
 using AIHackathon.Attributes;
+using AIHackathon.DB;
 using AIHackathon.Extensions;
 using AIHackathon.Models;
 using AIHackathon.Pages;
 using AIHackathon.Services;
+using BotCore.Services;
 using BotCore.Tg;
 using Microsoft.Extensions.Options;
 
@@ -17,6 +19,25 @@ namespace AIHackathon
         [CommandFilter(true, "sendMeInfo")]
         [IsRegisterFilter]
         private static Task SendMeInfo(UpdateContext context) => context.Reply(context.User.GetInfoUser());
+
+#if DEBUGTEST
+        private readonly static MediaSource MediaExitHandle = MediaSource.FromUri("https://media1.tenor.com/m/wLCaGpXM7VgAAAAC/exit-exit-pepe.gif");
+        [CommandFilter(true, "exit")]
+        [IsRegisterFilter]
+        private static async Task ExitHandle(UpdateContext context, ConditionalPooledObjectProvider<DataBase> dbP)
+        {
+            await context.Reply(new()
+            {
+                Message = $"Выполнен выход из аккаунта:\n{context.User.GetInfoUser()}",
+                Medias = [MediaExitHandle]
+            });
+            await dbP.TakeObjectAsync(x =>
+            {
+                x.RemoveUser(context.User);
+                return x.SaveChangesAsync();
+            });
+        }
+#endif
 
         [CommandFilter(true, "keyboard")]
         [IsRegisterFilter]
@@ -42,6 +63,8 @@ namespace AIHackathon
                 return GetNewsInfo(context, options.Value);
             return GetInfo(context);
         }
+
+        private readonly static ButtonsSend ButtonsHandleMediaFile = new([[ConstsShared.ButtonOpenInfo]]);
         [IsRegisterFilter]
         [MessageTypeFilter(UpdateType.Media)]
         private static Task HandleMediaFile(UpdateContext context, PageRouterHelper pageRouter, IOptions<Settings> options)
@@ -56,7 +79,8 @@ namespace AIHackathon
                 return context.Reply(new SendModel()
                 {
                     Message =$"Тип отправленного файла на оценивавшие модели не поддерживается, узнать об поддерживаемых библиотеках и форматах моделей можно в разделе \"{ConstsShared.ButtonOpenInfo}\"",
-                    Medias = [ConstsShared.MediaError]
+                    Medias = [ConstsShared.MediaError],
+                    Inline = ButtonsHandleMediaFile
                 });
             return pageRouter.Navigate(context, HandleMediaPage.Key);
         }

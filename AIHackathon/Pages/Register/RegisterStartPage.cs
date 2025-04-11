@@ -89,34 +89,11 @@ namespace AIHackathon.Pages.Register
                 db.Metrics.Add(new MetricParticipant()
                 {
                     ParticipantId = context.User.ParticipantId!.Value,
-                    Accuracy = 0.5,
+                    Accuracy = 0.1,
                     DateTime = DateTime.Now.AddMinutes(-1),
                     Library = "L1",
-                    PathFile = "Test.txt"
-                });
-                db.Metrics.Add(new MetricParticipant()
-                {
-                    ParticipantId = context.User.ParticipantId!.Value,
-                    Accuracy = 0.4,
-                    DateTime = DateTime.Now.AddMinutes(-2),
-                    Library = "L1",
-                    PathFile = "Test.txt"
-                });
-                db.Metrics.Add(new MetricParticipant()
-                {
-                    ParticipantId = context.User.ParticipantId!.Value,
-                    Accuracy = 0.3,
-                    DateTime = DateTime.Now.AddMinutes(-3),
-                    Library = "L1",
-                    PathFile = "Test.txt"
-                });
-                db.Metrics.Add(new MetricParticipant()
-                {
-                    ParticipantId = context.User.ParticipantId!.Value,
-                    Accuracy = 0.8,
-                    DateTime = DateTime.Now.AddMinutes(-4),
-                    Library = "L1",
-                    PathFile = "Test.txt"
+                    PathFile = "Test.txt",
+                    FileHash = string.Empty
                 });
                 return db.SaveChangesAsync();
             });

@@ -39,6 +39,7 @@ namespace AIHackathon.Pages.Register
 
         private async Task HandleMessage(BotCore.Interfaces.IUpdateContext<User> context)
         {
+            if (await IsNotCorrectValue(context, context.Update.Message!)) return;
             RegisterModel.Value = CorrectValue(context.Update.Message!);
             await _storageModel.Save();
             await context.Reply(new()
@@ -53,7 +54,6 @@ namespace AIHackathon.Pages.Register
         {
             if (buttonSearch.Button == ConstsShared.ButtonYes)
             {
-                if (await IsNotCorrectValue(context, RegisterModel.Value)) return;
                 SaveValue(context.User, RegisterModel.Value);
                 await _storageModel.Save();
                 await _pageRouter.Navigate(context, RegisterStartPage.Key);
@@ -96,7 +96,6 @@ namespace AIHackathon.Pages.Register
         });
 
         public void BindService(PageRouterHelper service) => _pageRouter = service;
-
         public void BindService(IMemoryCache service) => _memoryCache = service;
         protected override async Task OnExit(UpdateContext context)
         {

@@ -9,11 +9,15 @@ namespace AIHackathon.DB.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public int ParticipantId { get; set; }
+        [ForeignKey(nameof(ParticipantId))]
+        public Participant? Participant { get; set; }
         public double Accuracy { get; set; } // TODO
         public required string Library { get; set; }
         public string? Error { get; set; }
         public DateTime DateTime { get; set; }
         public required string PathFile { get; set; }
+        public required string FileHash { get; set; }
+        public string? FileType { get; set; }
 
         public bool IsSuccess => string.IsNullOrWhiteSpace(Error);
     }

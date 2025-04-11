@@ -18,6 +18,7 @@ namespace AIHackathon.DB
         public DbSet<Command> Commands { get; set; } = null!;
         public DbSet<Participant> Participants { get; set; } = null!;
         public DbSet<MetricParticipant> Metrics { get; set; } = null!;
+        public DbSet<Plagiat> Plagiats { get; set; } = null!;
 
         /// <summary>
         /// TODO DELETE
@@ -32,7 +33,7 @@ namespace AIHackathon.DB
 
         private async ValueTask<User?> GetCacheOrSendRequest(Telegram.Bot.Types.Chat chat, Func<Telegram.Bot.Types.Chat, Task<User?>> getUser)
         {
-            string key = $"user_{chat.Id}";
+            string key = GetCacheKeyUser(chat.Id);
             if (_memoryCache.TryGetValue<User>(key, out var user))
                 return user!;
             user = await getUser(chat);
@@ -41,16 +42,27 @@ namespace AIHackathon.DB
             return user;
         }
 
+        public void RemoveUser(User user)
+        {
+            Users.Remove(user);
+            _memoryCache.Remove(GetCacheKeyUser(user.Id));
+        }
+
         public ValueTask<User> CreateUser(Telegram.Bot.Types.Chat chat) => GetCacheOrSendRequest(chat, async (chat) =>
         {
-            await Chats.AddAsync(chat);
+            var chatFind = await Chats.FindAsync(chat.Id);
+            if (chatFind is null)
+                await Chats.AddAsync(chat);
+            else
+                chat = chatFind;
             var user = new User
             {
                 TgChat = chat,
                 KeyPage = Pages.StartPage.Key
             };
-            await Users.AddAsync(user);
+            var uE = Users.Add(user);
             await SaveChangesAsync();
+            uE.State = EntityState.Detached;
             return user;
         })!;
 
@@ -100,5 +112,7 @@ ORDER BY MAX(m.{nameof(MetricParticipant.Accuracy)}) DESC
 
         public IQueryable<RatingInfo<Command>> GetCommandsRating() => GetQueryRating<Command>(nameof(Participant.CommandId));
         public IQueryable<RatingInfo<Participant>> GetParticipantsRating() => GetQueryRating<Participant>(nameof(Participant.Id));
+
+        private static string GetCacheKeyUser(long userId) => $"user_{userId}";
     }
 }
