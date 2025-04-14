@@ -9,36 +9,39 @@ namespace AIHackathon.Services
     [Service(ServiceType.Singleton)]
     public class FilesStorage(IOptions<Settings> options)
     {
-        public ValueTask<Stream> OpenReadFile(string path) => new(File.OpenRead(Path.Combine(options.Value.PathRoot, path)));
+        public ValueTask<Stream> OpenReadFile(string subPath) => new(File.OpenRead(Path.Combine(options.Value.PathRoot, subPath)));
 
-        public ValueTask<Stream> CreateFile(string path)
+        public ValueTask<Stream> CreateFile(string subPath)
         {
-            path = Path.Combine(options.Value.PathRoot, path);
-            var dir = Path.GetDirectoryName(path);
+            subPath = Path.Combine(options.Value.PathRoot, subPath);
+            var dir = Path.GetDirectoryName(subPath);
             if (dir != null && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
-            return new(File.Create(path));
+            return new(File.Create(subPath));
         }
 
-        public ValueTask DeleteFile(string path)
+        public ValueTask DeleteFile(string subPath)
         {
-            path = Path.Combine(options.Value.PathRoot, path);
-            if (!File.Exists(path)) return ValueTask.CompletedTask;
-            File.Delete(Path.Combine(options.Value.PathRoot, path));
+            subPath = Path.Combine(options.Value.PathRoot, subPath);
+            if (!File.Exists(subPath)) return ValueTask.CompletedTask;
+            File.Delete(Path.Combine(options.Value.PathRoot, subPath));
             return ValueTask.CompletedTask;
         }
 
-        public async ValueTask ClearFolder(string path)
+        public async ValueTask ClearFolder(string subPath)
         {
-            path = Path.Combine(options.Value.PathRoot, path);
-            if (!Directory.Exists(path)) return;
-            var files = Directory.GetFiles(path);
-            var directories = Directory.GetDirectories(path);
+            subPath = Path.Combine(options.Value.PathRoot, subPath);
+            if (!Directory.Exists(subPath)) return;
+            var files = Directory.GetFiles(subPath);
+            var directories = Directory.GetDirectories(subPath);
 
             foreach (var file in files)
                 File.Delete(file);
             foreach (var directory in directories)
                 await ClearFolder(directory);
         }
+
+        public ValueTask<string> GetCurrentComputerPath(string subPath) => new(Path.GetFullPath(Path.Combine(options.Value.PathRoot, subPath)));
+        public ValueTask ReturnCurrentComputerPath(string fullPath) => ValueTask.CompletedTask;
     }
 }

@@ -11,6 +11,7 @@ using AIHackathon.Services;
 using BotCore.Services;
 using BotCore.Tg;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
 namespace AIHackathon
 {
@@ -19,6 +20,55 @@ namespace AIHackathon
         [CommandFilter(true, "sendMeInfo")]
         [IsRegisterFilter]
         private static Task SendMeInfo(UpdateContext context) => context.Reply(context.User.GetInfoUser());
+
+        public const string ScriptCommandKeras = "getKerasSaveModelScript";
+        public const string ScriptCommandSklearn = "getSklearnSaveModelScript";
+        public const string ScriptCommandXGBoost = "getXGBoostSaveModelScript";
+        public const string ScriptCommandAuto = "getAutoSaveModelScript";
+        public const string ScriptCommandDefault = "getDefaultSaveModelScript";
+
+        private readonly static Dictionary<string, string> SendScriptCommandFiles = new()
+        {
+            { ScriptCommandKeras.ToLower(), "Resources/splitKerasModel.py" },
+            { ScriptCommandSklearn.ToLower(), "Resources/splitSklearnModel.py" },
+            { ScriptCommandXGBoost.ToLower(), "Resources/splitXGBoostModel.py" },
+            { ScriptCommandAuto.ToLower(), "Resources/splitAutoModel.py" },
+            { ScriptCommandDefault.ToLower(), "Resources/splitDefaultModel.py" }
+        };
+        private readonly static ButtonsSend ButtonsSendScriptCommand = new([["К справке"]]);
+        [IsRegisterFilter]
+        [CommandFilter(true, ScriptCommandKeras, ScriptCommandSklearn, ScriptCommandXGBoost, ScriptCommandAuto, ScriptCommandDefault)]
+        private static Task SendScriptCommand(UpdateContext context)
+        {
+            if (!SendScriptCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var path))
+                return context.ReplyBug("Искомый ресурс не обнаружен");
+                var text = File.ReadAllText(path);
+            return context.Reply(new SendModel()
+            {
+                Message = $"```python\n{text}\n```",
+                Inline = ButtonsSendScriptCommand
+            }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
+        }
+
+        public const string ResourceFaceDataNpz = "getFacesDataNpz";
+        public const string ResourceFaceDataCsv = "getFacesDataCsv";
+        private readonly static Dictionary<string, MediaSource> SendResourcesCommandFiles = new()
+        {
+            { ResourceFaceDataNpz.ToLower(), MediaSource.FromFile("Resources/faces_data.npz") },
+            { ResourceFaceDataCsv.ToLower(), MediaSource.FromFile("Resources/predicted_keypoints.csv") },
+        };
+        [IsRegisterFilter]
+        [CommandFilter(true, ResourceFaceDataNpz, ResourceFaceDataCsv)]
+        private static Task SendResourceCommand(UpdateContext context)
+        {
+            if (!SendResourcesCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var resource))
+                return context.ReplyBug("Искомый ресурс не обнаружен");
+            return context.Reply(new()
+            {
+                Message = "Вот запрашиваемый ресурс",
+                Medias = [resource]
+            });
+        }
 
 #if DEBUGTEST
         private readonly static MediaSource MediaExitHandle = MediaSource.FromUri("https://media1.tenor.com/m/wLCaGpXM7VgAAAAC/exit-exit-pepe.gif");
@@ -61,41 +111,24 @@ namespace AIHackathon
                 return pageRouter.Navigate(context, RatingPage.Key);
             if (button == ConstsShared.ButtonOpenNews)
                 return GetNewsInfo(context, options.Value);
-            return GetInfo(context);
+            return pageRouter.Navigate(context, PageInfo.Key);
         }
 
         private readonly static ButtonsSend ButtonsHandleMediaFile = new([[ConstsShared.ButtonOpenInfo]]);
         [IsRegisterFilter]
         [MessageTypeFilter(UpdateType.Media)]
-        private static Task HandleMediaFile(UpdateContext context, PageRouterHelper pageRouter, IOptions<Settings> options)
+        private static async Task<bool> HandleMediaFile(UpdateContext context, PageRouterHelper pageRouter, IOptions<Settings> options)
         {
-            if (context.Update.Medias!.Count != 1)
-                return context.Reply(new SendModel()
-                {
-                    Message = "Для тестирования вашей модели необходимо прислать только один файл с обученной моделью!",
-                    Medias = [ConstsShared.MediaError]
-                });
-            if (!options.Value.ValidTypesHandleMediaFile.Contains(context.Update.Medias[0].Type))
-                return context.Reply(new SendModel()
+            if(context.User.KeyPage == HandleMediaPage.Key) return false;
+            if (!options.Value.ValidTypesHandleMediaFile.Contains(context.Update.Medias![0].Type))
+                await context.Reply(new SendModel()
                 {
                     Message =$"Тип отправленного файла на оценивавшие модели не поддерживается, узнать об поддерживаемых библиотеках и форматах моделей можно в разделе \"{ConstsShared.ButtonOpenInfo}\"",
                     Medias = [ConstsShared.MediaError],
                     Inline = ButtonsHandleMediaFile
                 });
-            return pageRouter.Navigate(context, HandleMediaPage.Key);
-        }
-
-        private const string GetInfoPathFile = "Info.txt";
-        private readonly static MediaSource GetInfoPMedia = MediaSource.FromUri("https://media1.tenor.com/m/aL7FPRcLg0MAAAAC/no.gif");
-        private static Task GetInfo(UpdateContext context)
-        {
-            var model = new SendModel()
-            {
-                Message = File.ReadAllText(ConstsShared.GetPathResource(GetInfoPathFile)),
-                Medias = [GetInfoPMedia]
-            };
-            model.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown);
-            return context.Reply(model);
+            else await pageRouter.Navigate(context, HandleMediaPage.Key);
+            return true;
         }
 
         private readonly static MediaSource MediaGetNewsInfo = MediaSource.FromUri("https://challenge.braim.org/storage/341/challenge/558/avatar/61b1e7c4-1081-11f0-99e2-8d5603df9e3c.jpg");

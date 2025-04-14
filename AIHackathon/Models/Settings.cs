@@ -10,5 +10,11 @@
         public string PathUserFiles { get; set; } = "./UserFiles";
         public string PathRoot { get; set; } = "./";
         public int WaitUpdateMessageTestingModel { get; set; } = 1000;
+        public required string DockerName { get; set; }
+        public required string DockerUri { get; set; }
+        public required string[] PathDockerInputFiles { get; set; }
+#if DEBUGTESTMODEL
+        public required string PathTestModel { get; set; }
+#endif
     }
 }

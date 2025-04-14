@@ -9,6 +9,7 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		DebugTest|Any CPU = DebugTest|Any CPU
+		DebugTestModel|Any CPU = DebugTestModel|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
@@ -16,6 +17,8 @@ Global
 		{09028C13-78A3-4F88-9DFC-9439B0386252}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{09028C13-78A3-4F88-9DFC-9439B0386252}.DebugTest|Any CPU.ActiveCfg = DebugTest|Any CPU
 		{09028C13-78A3-4F88-9DFC-9439B0386252}.DebugTest|Any CPU.Build.0 = DebugTest|Any CPU
+		{09028C13-78A3-4F88-9DFC-9439B0386252}.DebugTestModel|Any CPU.ActiveCfg = DebugTestModel|Any CPU
+		{09028C13-78A3-4F88-9DFC-9439B0386252}.DebugTestModel|Any CPU.Build.0 = DebugTestModel|Any CPU
 		{09028C13-78A3-4F88-9DFC-9439B0386252}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{09028C13-78A3-4F88-9DFC-9439B0386252}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection

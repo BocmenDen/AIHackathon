@@ -28,16 +28,20 @@ namespace AIHackathon.Services
                 {
                     sendModel[BotCore.Tg.TgClient.KeyMessagesToEdit] = lastMessage;
                     await context.Reply(sendModel);
-                    if (sendModel.IsEmpty)
-                    {
-                        StopEditLastMessage(context.User.Id);
-                    }
+                    SaveOldMessage(context, sendModel);
                 }
                 else
                 {
                     await context.Reply(sendModel);
+                    SaveOldMessage(context, sendModel);
+                }
+
+                void SaveOldMessage(TContext context, SendModel sendModel)
+                {
                     if (!sendModel.IsEmpty && sendModel.Keyboard is null && sendModel.ContainsKey(BotCore.Tg.TgClient.KeyMessagesToEdit))
                         usersEditMessage[context.User.Id] = sendModel[BotCore.Tg.TgClient.KeyMessagesToEdit];
+                    else
+                        StopEditLastMessage(context.User.Id);
                 }
             });
             if (Update != null)

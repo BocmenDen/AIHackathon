@@ -97,10 +97,7 @@ namespace AIHackathon.Pages.Register
 
         public void BindService(PageRouterHelper service) => _pageRouter = service;
         public void BindService(IMemoryCache service) => _memoryCache = service;
-        protected override async Task OnExit(UpdateContext context)
-        {
-            await _cancellationTokenSource.CancelAsync();
-        }
+        protected override Task OnExit(UpdateContext context) => _cancellationTokenSource.CancelAsync();
         public MemoryCacheEntryOptions GetCacheOptions()
         {
             var options = new MemoryCacheEntryOptions();

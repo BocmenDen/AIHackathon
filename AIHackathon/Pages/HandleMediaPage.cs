@@ -5,113 +5,213 @@ using AIHackathon.Extensions;
 using AIHackathon.Models;
 using AIHackathon.Services;
 using BotCore.Interfaces;
+using BotCore.PageRouter.Interfaces;
 using BotCore.Services;
 using BotCoreGenerator.PageRouter.Mirror;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
+using System.Collections.Concurrent;
+using System.Reflection;
+using System.Text;
 
 namespace AIHackathon.Pages
 {
     [PageCacheable(Key)]
     [GenerateModelMirror]
-    public partial class HandleMediaPage(FilesStorage storage, FileCheckPlagiat fileCheckPlagiarist, TestingModel testModel, IOptions<Settings> options, ConditionalPooledObjectProvider<DataBase> db) : PageBase
+    public partial class HandleMediaPage(FilesStorage storage, FileCheckPlagiat fileCheckPlagiarist, TestingModel testModel, IOptions<Settings> options, ConditionalPooledObjectProvider<DataBase> db, IMemoryCache memoryCache, PageRouterHelper pageRouter) : PageBase, IGetCacheOptions
     {
         public const string Key = "HandleMediaPage";
+
+        private const string TmpStorage = nameof(HandleMediaPage);
 
         private readonly static MediaSource MediaPlagiat = MediaSource.FromUri("https://media1.tenor.com/m/oCJsYj0GcEkAAAAC/copy-paste.gif");
         private readonly static MediaSource MediaMessageState = MediaSource.FromUri("https://media1.tenor.com/m/_28Wpe-HrfIAAAAC/nervous-spongebob.gif");
         private readonly static MediaSource MediaEnd = MediaSource.FromUri("https://media.tenor.com/flGNpobJuuoAAAAi/happy-clap.gif");
+        private readonly static MediaSource MediaLoadingFiles = MediaSource.FromUri("https://media1.tenor.com/m/JG9-sqzIMgQAAAAd/work-files-filing-cabinet.gif");
 
-        protected partial string? PathFile { get; set; }
-        protected partial string? TypeFile { get; set; }
+        private readonly static ButtonsSend ButtonsReset = new([["Начать отправку новой модели"]]);
+
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
+
+        protected partial string FilePath { get; set; }
+        protected partial string? FileType { get; set; }
         protected partial int? PlagiatId { get; set; }
         protected partial string? PlagiatCommand { get; set; }
         protected partial string? FileHash { get; set; }
         protected partial bool IsPlagiatMyCommand { get; set; }
+        protected partial TestModelResult? TestModel { get; set; }
+        protected partial int IdMetric { get; set; }
 
-        public override async Task HandleNewUpdateContext(UpdateContext context)
+        protected partial int CountParts { get; set; }
+        protected partial byte[] InputFileHash { get; set; }
+        protected partial ConcurrentDictionary<int, PartInfo> PartFiles { get; set; }
+
+        public override Task HandleNewUpdateContext(UpdateContext context)
+            => HandleNewUpdateContext(context, false);
+        public override Task OnNavigate(IUpdateContext<User> context)
+            => HandleNewUpdateContext(context, true);
+
+        private async Task HandleNewUpdateContext(UpdateContext context, bool isNavigate)
         {
-            if (PlagiatId != null || IsPlagiatMyCommand)
+            var serachButtons = context.BotFunctions.GetIndexButton(context.Update, ButtonsReset);
+            if((!isNavigate && serachButtons != null) || ((TestModel != null || IsPlagiatMyCommand) && context.Update.UpdateType.HasFlag(UpdateType.Media)))
+            {
+                await pageRouter.Navigate(context, Key);
+                return;
+            }
+            if (IsPlagiatMyCommand)
             {
                 await SendPlagiatInfo(context);
                 return;
             }
-            if (!await WaitStep(IsLoadMediaStep(context), context, "скачивание файла"))
+            if (TestModel != null)
             {
-                await context.ReplyBug(
-@"Не удалось обнаружить отправляемый файл, возможные причины:
-├> файл слишком большой
-├> файл не был отправлен
-└> во время скачивания вашей модели из Tg чат-бот был перезагружен
-
-Попробуйте ещё раз отправить файл, если ошибка повториться сообщите об этом.");
+                await SendTestModelInfo(context);
                 return;
+            }
+            if (FilePath is null)
+            {
+                if (await LoadMedias(context)) return;
+                if (await CombineFiles()) return;
             }
             if (await WaitStep(IsPlagiatStep(context), context, "проверка на плагиат"))
             {
                 await SendPlagiatInfo(context);
                 return;
             }
-            var resultTesting = await WaitStep(testModel.Testing(PathFile!, TypeFile!), context, "оценивание модели");
-            MetricParticipant metricResult = new()
-            {
-                PathFile = PathFile!,
-                FileType = TypeFile,
-                FileHash = FileHash!,
-                Library = resultTesting.Library,
-                Error = resultTesting.Error,
-                Accuracy = resultTesting.Accuracy,
-                DateTime = DateTime.Now,
-                ParticipantId = context.User.Participant!.Id
-            };
-            await db.TakeObjectAsync(x =>
-            {
-                x.Metrics.Add(metricResult);
-                return x.SaveChangesAsync();
-            });
-            if (resultTesting.IsError)
-            {
-                await context.Reply(new SendModel()
-                {
-                    Message = @$"Произошла ошибка при оценивании вашей модели: {resultTesting.Error}",
-                    Medias = [ConstsShared.MediaError]
-                });
-                return;
-            }
-            await context.Reply(new SendModel()
-            {
-                Message = @$"
-Модель успешно оценена!
-Результаты:
-├> Id: {metricResult.Id}
-├> Библиотека: {metricResult.Library}
-└> Метрика: {metricResult.Accuracy}",
-                Medias = [MediaEnd]
-            });
+            _ = await WaitStep(TestModelStep(context), context, "тестирование модели");
+            await SendTestModelInfo(context);
         }
 
-        private static async Task<T> WaitStep<T>(Task<T> task, UpdateContext context, string nameStep)
+        private async Task<bool> LoadMedias(UpdateContext context)
         {
-            string waitLine = "";
-            while (!task.IsCompleted)
+            StringBuilder stringBuilder = new();
+            if (context.Update.UpdateType.HasFlag(UpdateType.Media))
             {
-                await context.Reply(new SendModel()
-                {
-                    Message = $@"
-Процесс оценки вашей модели запущен. Пожалуйста, не выполняйте никаких действий, пока он не завершится.
-└> {nameStep} {waitLine}
-
-Если сообщение перестанет обновляться, возможно, произошла перезагрузка бота. В таком случае попробуйте повторно отправить файл или сообщите об этом разработчику: @BocmenDen.",
-                    Medias = [MediaMessageState]
-                });
-                waitLine += ".";
-                await Task.Delay(1000);
+                FileType ??= context.Update.Medias![0].Type;
+                _ = await WaitStep(LoadMedias(context, stringBuilder), context, $"Выполняю скачивание {context.Update.Medias!.Count} файлов");
+                await Model.Save();
             }
-            return await task;
-        }
+            if (CountParts == 0)
+            {
+                await context.Reply(new()
+                {
+                    Message = "📦 Загрузите все части обученной модели по отдельности или группой медиафайлов.",
+                    Medias = [MediaLoadingFiles]
+                });
+                return true;
+            }
+            if (CountParts != PartFiles.Count)
+            {
+                stringBuilder.Insert(0, @$"Ожидается загрузка всех файлов.
+├> загружено {PartFiles.Count} из {CountParts}
+└> расширение: {FileType}
 
+");
+                foreach (var file in PartFiles)
+                {
+                    stringBuilder.AppendLine($"Загружен: {file.Value.Name}.{FileType}");
+                    stringBuilder.AppendLine($"└> часть {file.Key}");
+                    stringBuilder.AppendLine();
+                }
+
+                await context.Reply(new()
+                {
+                    Message = stringBuilder.ToString(),
+                    Inline = ButtonsReset,
+                    Medias = [MediaLoadingFiles]
+                });
+                return true;
+            }
+            return false;
+
+            async Task<bool> LoadMedias(IUpdateContext<User> context, StringBuilder stringBuilder)
+            {
+                object lockObj = new();
+                await Task.WhenAll(context.Update.Medias!.Select(LoadMedia(stringBuilder, lockObj)));
+                await Model.Save();
+                return true;
+
+                Func<MediaSource, Task> LoadMedia(StringBuilder stringBuilder, object lockObj)
+                {
+                    return async mediaSource =>
+                    {
+                        using var fileMedia = await mediaSource.GetStream();
+                        byte[] bufferHash = new byte[32];
+                        await fileMedia.ReadExactlyAsync(bufferHash);
+                        int countParts = fileMedia.ReadByte();
+                        int pos = fileMedia.ReadByte();
+                        var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}_{pos}_{mediaSource.Name!}.{mediaSource.Type}";
+                        var filePath = Path.Combine(TmpStorage, fileName);
+                        using var fileStream = await storage.CreateFile(filePath);
+
+                        void AddLog(string message)
+                        {
+                            lock (lockObj)
+                            {
+                                stringBuilder.AppendLine($"Файл {mediaSource.Name}.{mediaSource.Type}: {message}");
+                                stringBuilder.AppendLine($"└>Позиция: {pos}");
+
+                                stringBuilder.AppendLine();
+                            }
+                        }
+
+                        if (PartFiles == null)
+                        {
+                            PartFiles = [];
+                            InputFileHash = bufferHash;
+                            CountParts = countParts;
+                        }
+                        if (FileType != mediaSource.Type)
+                        {
+                            AddLog($"Не загружен  т.к имеет расширение отличное от {FileType}");
+                            return;
+                        }
+                        if (!bufferHash.SequenceEqual(InputFileHash))
+                        {
+                            AddLog($"Не загружен т.к данный фрагмент принадлежит другому файлу");
+                            return;
+                        }
+                        if (pos >= CountParts)
+                        {
+                            AddLog($"Не загружен т.к данный фрагмент имеет неверный номер");
+                            return;
+                        }
+                        await fileMedia.CopyToAsync(fileStream);
+                        PartFiles[pos] = new PartInfo()
+                        {
+                            Path = filePath,
+                            Name = mediaSource.Name!
+                        };
+                    };
+                }
+            }
+        }
+        private async Task<bool> CombineFiles()
+        {
+            if (FilePath is null && PartFiles.Count == CountParts && CountParts > 0)
+            {
+                var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}.{FileType}";
+                var filePath = Path.Combine(options.Value.PathUserFiles, fileName);
+                using var fileStream = await storage.CreateFile(filePath);
+
+                foreach (var (_, fileInfo) in PartFiles.OrderBy(x => x.Key))
+                {
+                    var filePart = await storage.OpenReadFile(fileInfo.Path);
+                    await filePart.CopyToAsync(fileStream);
+                    await filePart.DisposeAsync();
+                    await storage.DeleteFile(fileInfo.Path);
+                }
+                FilePath = filePath;
+                await Model.Save();
+                return false;
+            }
+            return true;
+        }
         private async Task<bool> IsPlagiatStep(UpdateContext context)
         {
-            var resultPlagiat = await fileCheckPlagiarist.CheckPlagiat(PathFile!, TypeFile);
+            var resultPlagiat = await fileCheckPlagiarist.CheckPlagiat(FilePath!);
             FileHash = resultPlagiat.Hash;
             if (resultPlagiat.IsPlagiat)
             {
@@ -135,14 +235,35 @@ namespace AIHackathon.Pages
                     PlagiatCommand = resultPlagiat.PlagiatMetricParticipant!.Participant!.Command.Name;
                     PlagiatId = await db.TakeObjectAsync(fSavePlagiatReport);
                 }
-                await storage.DeleteFile(PathFile!);
-                PathFile = null;
-                await Model.Save();
+                await storage.DeleteFile(FilePath!);
                 return true;
             }
             return false;
         }
-
+        private async Task<bool> TestModelStep(UpdateContext context)
+        {
+            var resultTesting = await testModel.Testing(FilePath!, FileType!);
+            MetricParticipant metricResult = new()
+            {
+                PathFile = FilePath!,
+                FileType = FileType,
+                FileHash = FileHash!,
+                Library = resultTesting.Library,
+                Error = resultTesting.Error,
+                Accuracy = resultTesting.Accuracy,
+                DateTime = DateTime.Now,
+                ParticipantId = context.User.Participant!.Id
+            };
+            await db.TakeObjectAsync(x =>
+            {
+                x.Metrics.Add(metricResult);
+                return x.SaveChangesAsync();
+            });
+            IdMetric = metricResult.Id;
+            TestModel = resultTesting;
+            await Model.Save();
+            return true;
+        }
         private Task SendPlagiatInfo(UpdateContext context)
         {
             if (IsPlagiatMyCommand)
@@ -165,32 +286,81 @@ namespace AIHackathon.Pages
                 Medias = [MediaPlagiat]
             });
         }
-
-        private async Task<bool> IsLoadMediaStep(UpdateContext context)
+        private async Task SendTestModelInfo(UpdateContext context)
         {
-            if (!string.IsNullOrWhiteSpace(PathFile)) return true;
-            if (context.Update.Medias == null || context.Update.Medias.Count == 0) return false;
-            var mediaSource = context.Update.Medias![0];
-            var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}_{mediaSource.Name!}";
-            var filePath = Path.Combine(options.Value.PathUserFiles, fileName);
-            using var fileStream = await storage.CreateFile(filePath);
-            using var fileMedia = await mediaSource.GetStream();
-            await fileMedia.CopyToAsync(fileStream);
-            PathFile = filePath;
-            TypeFile = mediaSource.Type!;
-            await Model.Save();
-            return true;
+            if (TestModel is not TestModelResult resultTesting) return;
+            if (resultTesting.IsError)
+            {
+                await context.Reply(new SendModel()
+                {
+                    Message = @$"Произошла ошибка при оценивании вашей модели: {resultTesting.Error}
+
+Id записи: {IdMetric}
+",
+                    Medias = [ConstsShared.MediaError]
+                });
+                return;
+            }
+            await context.Reply(new SendModel()
+            {
+                Message = @$"
+Модель успешно оценена!
+Результаты:
+├> Библиотека: {resultTesting.Library}
+└> Метрика: {resultTesting.Accuracy}",
+                Medias = [MediaEnd]
+            });
+        }
+        private async Task<T> WaitStep<T>(Task<T> task, UpdateContext context, string nameStep)
+        {
+            string waitLine = "";
+            while (!task.IsCompleted)
+            {
+                await context.Reply(new SendModel()
+                {
+                    Message = $@"
+Процесс оценки вашей модели запущен. Пожалуйста, не выполняйте никаких действий, пока он не завершится.
+├> обновилось в: {DateTime.Now}
+└> {nameStep} {waitLine}
+
+Если сообщение перестанет обновляться, возможно, произошла перезагрузка бота. В таком случае попробуйте повторно отправить файлы или сообщите об этом разработчику: @BocmenDen.",
+                    Medias = [MediaMessageState]
+                });
+                waitLine += "🐢";
+                await Task.WhenAny(Task.Delay(options.Value.WaitUpdateMessageTestingModel), task);
+            }
+            return await task;
         }
 
-        protected override Task OnExit(IUpdateContext<User> context)
+        protected override async Task OnExit(IUpdateContext<User> context)
         {
-            PlagiatId = null;
-            PlagiatCommand = null;
-            FileHash = null;
-            PathFile = null;
-            TypeFile = null;
-            IsPlagiatMyCommand = false;
-            return Model.Save();
+            await db.TakeObjectAsync(x =>
+            {
+                context.User.ModelPage = null;
+                x.Users.Update(context.User);
+                return x.SaveChangesAsync();
+            });
+            await _cancellationTokenSource.CancelAsync();
+        }
+
+        public MemoryCacheEntryOptions GetCacheOptions()
+        {
+            var options = new MemoryCacheEntryOptions();
+            PageCacheableAttribute pageCacheableAttribute = GetType().GetCustomAttribute<PageCacheableAttribute>()!;
+            options.SlidingExpiration = pageCacheableAttribute.SlidingExpiration;
+            options.AddExpirationToken(new CancellationChangeToken(_cancellationTokenSource.Token));
+            options.RegisterPostEvictionCallback((object key, object? value, EvictionReason reason, object? state) =>
+            {
+                memoryCache.Remove(key);
+                _cancellationTokenSource.Dispose();
+            });
+            return options;
+        }
+
+        public struct PartInfo
+        {
+            public string Path;
+            public string Name;
         }
     }
 }

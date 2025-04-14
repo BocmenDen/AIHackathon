@@ -11,8 +11,8 @@ namespace AIHackathon.DB.Models
         public int ParticipantId { get; set; }
         [ForeignKey(nameof(ParticipantId))]
         public Participant? Participant { get; set; }
-        public double Accuracy { get; set; } // TODO
-        public required string Library { get; set; }
+        public double Accuracy { get; set; }
+        public string? Library { get; set; }
         public string? Error { get; set; }
         public DateTime DateTime { get; set; }
         public required string PathFile { get; set; }

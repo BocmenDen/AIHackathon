@@ -56,6 +56,7 @@ namespace AIHackathon
                         .RegisterPagesInRouter<User, UpdateContext, string>(Assembly.GetAssembly(typeof(Program))!)
                         .Build();
 
+#if !DEBUGTESTMODEL
             var spamFilter = host.Services.GetRequiredService<MessageSpam>();
             var viewErrorsLayer = host.Services.GetRequiredService<LayerViewError>();
             var editOldMessage = host.Services.GetRequiredService<LayerOldEditMessage<User, UpdateContext>>();
@@ -66,11 +67,12 @@ namespace AIHackathon
                 if (client is IClientBot<User, UpdateContext> castClient)
                     castClient.Update += spamFilter.HandleNewUpdateContext;
 
-            spamFilter.Update += viewErrorsLayer.HandleNewUpdateContext;
-            viewErrorsLayer.Update += editOldMessage.HandleNewUpdateContext;
-            editOldMessage.Update += filterRouting.HandleNewUpdateContext;
+            spamFilter.Update += editOldMessage.HandleNewUpdateContext;
+            editOldMessage.Update += viewErrorsLayer.HandleNewUpdateContext;
+            viewErrorsLayer.Update += filterRouting.HandleNewUpdateContext;
             filterRouting.Update += pageRouting.HandleNewUpdateContext;
             pageRouting.Update += (context) => context.ReplyBug("В данный момент у вас не открыта страница 📄.");
+#endif
 #if DEBUGTEST
             var db = host.Services.GetRequiredService<DataBase>();
             var command = new Command()
@@ -135,6 +137,18 @@ namespace AIHackathon
             db.SaveChanges();
             db.ChangeTracker.Clear();
 #endif
+
+#if DEBUGTESTMODEL
+            var serviceTest = host.Services.GetRequiredService<TestingModel>();
+            var settings = host.Services.GetRequiredService<IOptions<Settings>>().Value;
+            serviceTest.Testing(settings.PathTestModel, Path.GetExtension(settings.PathTestModel).Replace(".", string.Empty)).ContinueWith(x =>
+            {
+                Console.WriteLine($"Accuracy: {x.Result.Accuracy}");
+                Console.WriteLine($"Library: {x.Result.Library}");
+                Console.WriteLine($"Error: {x.Result.Error}");
+            }).Wait();
+#endif
+
             host.Run();
         }
     }
