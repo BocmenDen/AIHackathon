@@ -21,12 +21,17 @@ namespace AIHackathon.Pages
             var infoCommand = await db.GetCommandsRating().FirstOrDefaultAsync(x => x.SubjectId == context.User.Participant!.CommandId);
             var infoParticants = await db.GetParticipantsRating().Where(x => x.Subject.CommandId == context.User.Participant!.CommandId).ToListAsync();
             dbObj.Return(db);
-            if (infoCommand == null) return;
             SendModel sendModel = new()
             {
                 Inline = ConstsShared.ButtonsUpdate,
                 Medias = [Media]
             };
+            if (infoCommand == null)
+            {
+                sendModel.Message = $"Актуально на {DateTime.Now}\n\nВ данный момент никто не ещё не отправил модель на оценивание.";
+                await context.Reply(sendModel);
+                return;
+            }
             StringBuilder stringBuilder = new();
             stringBuilder.AppendLine($"Актуально на: {DateTime.Now}");
             stringBuilder.AppendLine(context.User.Participant!.Command.Name);

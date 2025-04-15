@@ -56,15 +56,20 @@ namespace AIHackathon.Pages
                 _indexPage = lastPage;
             else if (_indexPage <  0)
                 _indexPage = 0;
-            var commandsRating = dbObj.GetCommandsRating().Skip(_indexPage * options.Value.CountCommandsInPage).Take(options.Value.CountCommandsInPage).AsAsyncEnumerable();
+            var commandsRating = await dbObj.GetCommandsRating().Skip(_indexPage * options.Value.CountCommandsInPage).Take(options.Value.CountCommandsInPage).ToListAsync();
             StringBuilder stringBuilder = new();
             stringBuilder.AppendLine($"📅 Актуально на: {DateTime.Now}");
             stringBuilder.AppendLine($"🏁 Гонка за лидерством — {_indexPage + 1} страница");
             stringBuilder.AppendLine($"🔄 Для перехода введите номер страницы от 1 до {lastPage + 1}");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"📋 Команды и их рейтинг:");
-            stringBuilder.AppendLine($"────────────────────────");
-            await foreach (var elem in commandsRating)
+            if (commandsRating.Count != 0)
+            {
+                stringBuilder.AppendLine($"📋 Команды и их рейтинг:");
+                stringBuilder.AppendLine($"────────────────────────");
+            }
+            else
+                stringBuilder.AppendLine("В данный момент никто не ещё не отправил модель на оценивание");
+            foreach (var elem in commandsRating)
             {
                 stringBuilder.AppendLine($"{NumberToEmodji(elem.Rating)} {(elem.SubjectId == context.User.Participant!.CommandId ? "🎯" : string.Empty)} {elem.Subject.Name}");
                 stringBuilder.AppendLine($"└> {elem.Metric}");
@@ -85,7 +90,7 @@ namespace AIHackathon.Pages
 
         public override async Task OnNavigate(IUpdateContext<User> context)
         {
-            _indexPage = (await db.TakeObjectAsync(x => x.GetCommandsRating().FirstAsync(x => x.SubjectId == context.User.Participant!.CommandId))).Position - 1;
+            _indexPage = ((await db.TakeObjectAsync(x => x.GetCommandsRating().FirstOrDefaultAsync(x => x.SubjectId == context.User.Participant!.CommandId)))?.Position ?? 1) - 1;
             _indexPage /= 10;
             await base.OnNavigate(context);
         }
