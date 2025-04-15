@@ -22,6 +22,8 @@ import joblib
 import xgboost as xgb
 import h5py
 from sklearn.base import BaseEstimator
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
 
 # Константы для библиотек
 KERAS = "Keras"
@@ -35,10 +37,9 @@ ERROR_INTERNAL = "Внутренняя ошибка: не удалось най�
 
 # Функция для создания стандартного результата
 def create_result(library, mse_value, error=None):
-    accuracy = 1 / (1 + mse_value)
     return {
         "Library": library,
-        "Accuracy": accuracy,
+        "Accuracy": mse_value,
         "Error": error
     }
 
@@ -51,9 +52,10 @@ def load_prepared_data(image_file, keypoints_file):
     return x_test, y_test
 
 # Функция для вычисления MSE и преобразования в точность
-def metric_mse(y_test, y_pred):
-    mse_value = mean_squared_error(y_test, y_pred)
-    return mse_value
+def metric(y_test, y_pred):
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    return mse / 100 + mae
 
 # Автоматическое подгонка входных данных под модель
 def auto_adjust_input(model, x):
@@ -103,25 +105,22 @@ def load_and_evaluate_model(model_file, x_test, y_test):
             model = load_model(model_file, custom_objects={'mse': MSE()})
             x_test = auto_adjust_input(model, x_test)
             y_pred = model.predict(x_test)
-            mse = mean_squared_error(y_test, y_pred)
-            return create_result(KERAS, mse)
-        
+            m_val = metric(y_test, y_pred)
+            return create_result(KERAS, m_val)
         elif model_type == SCIKIT_LEARN:
             model = joblib.load(model_file)
             x_test = auto_adjust_input(model, x_test)
             y_pred = model.predict(x_test)
-            mse = mean_squared_error(y_test, y_pred)
-            return create_result(SCIKIT_LEARN, mse)
-        
+            m_val = metric(y_test, y_pred)
+            return create_result(SCIKIT_LEARN, m_val)
         elif model_type == XGBOOST:
             model = xgb.Booster()
             model.load_model(model_file)
             x_test = auto_adjust_input(model, x_test)
             dtest = xgb.DMatrix(x_test)
             y_pred = model.predict(dtest)
-            mse = mean_squared_error(y_test, y_pred)
-            return create_result(XGBOOST, mse)
-        
+            m_val = metric(y_test, y_pred)
+            return create_result(XGBOOST, m_val)
         else:
             return create_result(UNKNOWN, 0, ERROR_UNKNOWN_FORMAT)
     
