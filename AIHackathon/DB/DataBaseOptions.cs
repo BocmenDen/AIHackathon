@@ -6,7 +6,7 @@
         public TimeSpan? TimeoutCacheUser { get; set; }
 
         public string GetPathOrDefault()
-            => string.IsNullOrWhiteSpace(Connection) ? $"{System.IO.Path.GetRandomFileName()}.db" : Connection;
+            => string.IsNullOrWhiteSpace(Connection) ? $"{Path.GetRandomFileName()}.db" : Connection;
 
         public TimeSpan GetTimeoutCacheUserOrDefault() => TimeoutCacheUser ?? TimeSpan.FromMinutes(5);
     }

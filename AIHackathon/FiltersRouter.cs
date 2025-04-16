@@ -11,7 +11,6 @@ using AIHackathon.Services;
 using BotCore.Services;
 using BotCore.Tg;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
 namespace AIHackathon
 {
@@ -42,7 +41,7 @@ namespace AIHackathon
         {
             if (!SendScriptCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var path))
                 return context.ReplyBug("Искомый ресурс не обнаружен");
-                var text = File.ReadAllText(path);
+            var text = File.ReadAllText(path);
             return context.Reply(new SendModel()
             {
                 Message = $"```python\n{text}\n```",
@@ -50,25 +49,25 @@ namespace AIHackathon
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
         }
 
-        public const string ResourceFaceDataNpz = "getFacesDataNpz";
-        public const string ResourceFaceDataCsv = "getFacesDataCsv";
-        private readonly static Dictionary<string, MediaSource> SendResourcesCommandFiles = new()
-        {
-            { ResourceFaceDataNpz.ToLower(), MediaSource.FromFile("Resources/faces_data.npz") },
-            { ResourceFaceDataCsv.ToLower(), MediaSource.FromFile("Resources/predicted_keypoints.csv") },
-        };
-        [IsRegisterFilter]
-        [CommandFilter(true, ResourceFaceDataNpz, ResourceFaceDataCsv)]
-        private static Task SendResourceCommand(UpdateContext context)
-        {
-            if (!SendResourcesCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var resource))
-                return context.ReplyBug("Искомый ресурс не обнаружен");
-            return context.Reply(new()
-            {
-                Message = "Вот запрашиваемый ресурс",
-                Medias = [resource]
-            });
-        }
+        //public const string ResourceFaceDataNpz = "getFacesDataNpz";
+        //public const string ResourceFaceDataCsv = "getFacesDataCsv";
+        //private readonly static Dictionary<string, MediaSource> SendResourcesCommandFiles = new()
+        //{
+        //    { ResourceFaceDataNpz.ToLower(), MediaSource.FromFile("Resources/faces_data.npz") },
+        //    { ResourceFaceDataCsv.ToLower(), MediaSource.FromFile("Resources/predicted_keypoints.csv") },
+        //};
+        //[IsRegisterFilter]
+        //[CommandFilter(true, ResourceFaceDataNpz, ResourceFaceDataCsv)]
+        //private static Task SendResourceCommand(UpdateContext context)
+        //{
+        //    if (!SendResourcesCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var resource))
+        //        return context.ReplyBug("Искомый ресурс не обнаружен");
+        //    return context.Reply(new()
+        //    {
+        //        Message = "Вот запрашиваемый ресурс",
+        //        Medias = [resource]
+        //    });
+        //}
 
 #if DEBUGTEST
         private readonly static MediaSource MediaExitHandle = MediaSource.FromUri("https://media1.tenor.com/m/wLCaGpXM7VgAAAAC/exit-exit-pepe.gif");
@@ -119,7 +118,7 @@ namespace AIHackathon
         [MessageTypeFilter(UpdateType.Media)]
         private static async Task<bool> HandleMediaFile(UpdateContext context, PageRouterHelper pageRouter, IOptions<Settings> options)
         {
-            if(context.User.KeyPage == HandleMediaPage.Key) return false;
+            if (context.User.KeyPage == HandleMediaPage.Key) return false;
             if (!options.Value.ValidTypesHandleMediaFile.Contains(context.Update.Medias![0].Type))
                 await context.Reply(new SendModel()
                 {

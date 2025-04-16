@@ -60,7 +60,7 @@ namespace AIHackathon
             else
                 builder = builder.ConfigureAppConfiguration(app => app.AddUserSecrets(Assembly.GetExecutingAssembly()));
 
-                IHost host = builder.Build();
+            IHost host = builder.Build();
 
 #if !DEBUGTESTMODEL
             var spamFilter = host.Services.GetRequiredService<MessageSpam>();

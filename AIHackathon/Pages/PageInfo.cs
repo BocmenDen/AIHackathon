@@ -6,15 +6,16 @@ using System.Text.RegularExpressions;
 namespace AIHackathon.Pages
 {
     [PageCacheable(Key)]
-    public partial class PageInfo: PageBase
+    public partial class PageInfo : PageBase
     {
         public const string Key = "PageInfo";
         private const string RootChapters = "1 Общая информация";
         private const string DatasetInfoChapters = "2 Подробнее о датасете";
-        private const string LibraryInfoChapters = "3 О доступных библиотеках";
-        private const string SendModelInfoChapters = "4 Отправка модели";
-        private const string DemoInfoChapters = "5 Примеры";
-        private readonly static ButtonsSend buttonsChapter = new([[RootChapters], [DatasetInfoChapters], [LibraryInfoChapters], [SendModelInfoChapters], [DemoInfoChapters]]);
+        private const string DemoInfoChapters = "3 Пример фотографии";
+        private const string LibraryInfoChapters = "4 О доступных библиотеках";
+        private const string SendModelInfoChapters = "5 Отправка модели";
+        private const string EvaluationRulesInfoChapters = "6 Метрика и правила";
+        private readonly static ButtonsSend buttonsChapter = new([[RootChapters], [DatasetInfoChapters], [DemoInfoChapters], [LibraryInfoChapters], [SendModelInfoChapters], [EvaluationRulesInfoChapters]]);
         private readonly static Dictionary<string, string> _infos = new()
         {
             { RootChapters,
@@ -72,7 +73,7 @@ namespace AIHackathon.Pages
 Порядок входных точек для предсказаний:
 ```left_eye_center_x,left_eye_center_y,right_eye_center_x,right_eye_center_y,left_eye_inner_corner_x,left_eye_inner_corner_y,left_eye_outer_corner_x,left_eye_outer_corner_y,right_eye_inner_corner_x,right_eye_inner_corner_y,right_eye_outer_corner_x,right_eye_outer_corner_y,left_eyebrow_inner_end_x,left_eyebrow_inner_end_y,left_eyebrow_outer_end_x,left_eyebrow_outer_end_y,right_eyebrow_inner_end_x,right_eyebrow_inner_end_y,right_eyebrow_outer_end_x,right_eyebrow_outer_end_y,nose_tip_x,nose_tip_y,mouth_left_corner_x,mouth_left_corner_y,mouth_right_corner_x,mouth_right_corner_y,mouth_center_top_lip_x,mouth_center_top_lip_y,mouth_center_bottom_lip_x,mouth_center_bottom_lip_y```
 " },
-			{ LibraryInfoChapters,
+            { LibraryInfoChapters,
 @"
 📦 *Поддерживаемые форматы:*
 
@@ -87,16 +88,16 @@ namespace AIHackathon.Pages
 Для корректной загрузки и работы моделей *обязательно используйте те же версии библиотек*, которые применялись при тестировании:
 
 ```
-numpy==2.0.2  
-pandas==2.2.3  
-tensorflow==2.18.0  
-scikit-learn==1.5.2  
-xgboost==2.1.2  
+numpy=2.0.2  
+pandas=2.2.3  
+tensorflow=2.18.0  
+scikit-learn=1.5.2  
+xgboost=2.1.2  
 ```
 
 Несовпадение версий может привести к ошибкам при загрузке или некорректному тестированию моделей.
 " },
-			{ SendModelInfoChapters,
+            { SendModelInfoChapters,
 $@"
 📤 *Отправка модели*
 
@@ -131,47 +132,64 @@ xgboost==2.1.2
 
 Несовпадение версий может привести к ошибкам ⚠️
 " },
-			{ DemoInfoChapters,
+            { EvaluationRulesInfoChapters,
 $@"
-Каждое изображение — это лицо в градациях серого размером *96×96 пикселей*, предварительно нормализованное в диапазон значений *от 0 до 1*. Изображения собраны в `.npz` файл как массив размерности `(N, 96, 96, 1)`.
-Пример доступен по команде: /{FiltersRouter.ResourceFaceDataNpz}
+*Метрика и ограничения*  
+Каждая модель проверяется на заранее подготовленном тестовом наборе данных. Для оценки точности используется комбинированная метрика:
 
-К каждому изображению прилагается набор из *30 координат ключевых точек лица*, охватывающих глаза, брови, нос и рот. Эти координаты сохранены в `.csv` файле, пример которого можно найти здесь: /{FiltersRouter.ResourceFaceDataCsv}
+```
+MSE / 100 + MAE
+```
 
-📌 В сообщении также приложен пример изображения с визуально отмеченными ключевыми точками.
+- *MSE (Mean Squared Error)* — среднеквадратичная ошибка.  
+- *MAE (Mean Absolute Error)* — средняя абсолютная ошибка.  
+
+💡 *Чем меньше значение метрики — тем выше точность модели.*  
+Низкая метрика означает, что модель точно предсказывает координаты ключевых точек на изображениях.
+
+*Ограничения при отправке*  
+- 📤 *Одно сообщение за раз* Пока бот обрабатывает какое-либо сообщение, все новые игнорируются.
+
+- 🛡 *Фильтрация спама* Если пользователь отправил более *5 сообщений за 3 секунды*, бот *игнорирует* его сообщения на *5 минут*.
+
+- 🎯 *Лимит на тестирования* Каждой команде даётся *100 попыток* на проверку обученных моделей за время хакатона. После исчерпания лимита команда не сможет отправлять новые модели на оценку.
+"  },
+            { DemoInfoChapters,
+$@"
+Каждое изображение — это лицо в градациях серого размером *96×96 пикселей*.
 " },
         };
-		private readonly static Dictionary<string, List<MediaSource>> _mediasInfos = new()
-		{
-			{ DemoInfoChapters, [MediaSource.FromFile("./Resources/img10_landmarks.png")] }
-		};
+        private readonly static Dictionary<string, List<MediaSource>> _mediasInfos = new()
+        {
+            { DemoInfoChapters, [MediaSource.FromFile("./Resources/DemoStart.jpg"), MediaSource.FromFile("./Resources/Demo.jpg")] }
+        };
 
         protected string _chapter = RootChapters;
 
         public override Task HandleNewUpdateContext(UpdateContext context)
         {
-			var buttons = context.BotFunctions.GetIndexButton(context.Update, buttonsChapter);
-			if (buttons is ButtonSearch btnS)
-			{
-				if(_chapter == btnS.Button.Text) return Task.CompletedTask;
+            var buttons = context.BotFunctions.GetIndexButton(context.Update, buttonsChapter);
+            if (buttons is ButtonSearch btnS)
+            {
+                if (_chapter == btnS.Button.Text) return Task.CompletedTask;
                 _chapter = btnS.Button.Text;
             }
-			if (!_infos.TryGetValue(_chapter, out var text)) return context.ReplyBug("Не найден раздел для справки");
-			_mediasInfos.TryGetValue(_chapter, out var medias);
+            if (!_infos.TryGetValue(_chapter, out var text)) return context.ReplyBug("Не найден раздел для справки");
+            _mediasInfos.TryGetValue(_chapter, out var medias);
             return context.Reply(new SendModel()
-			{
-				Message = ToMarkdownV2Escaped(text),
-				Inline = new ButtonsSend(buttonsChapter.Buttons.Select(x =>
-				{
-					if(x[0].Text == _chapter)
-						return [new ButtonSend($"📌 {x[0].Text}")];
-					return x;
-				} )),
-				Medias = medias
+            {
+                Message = ToMarkdownV2Escaped(text),
+                Inline = new ButtonsSend(buttonsChapter.Buttons.Select(x =>
+                {
+                    if (x[0].Text == _chapter)
+                        return [new ButtonSend($"📌 {x[0].Text}")];
+                    return x;
+                })),
+                Medias = medias
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
         }
 
-		public static string ToMarkdownV2Escaped(string input) => RegexEscape().Replace(input, @"\$1");
+        public static string ToMarkdownV2Escaped(string input) => RegexEscape().Replace(input, @"\$1");
         [GeneratedRegex(@"([\\.\-()#=!\[\]])")]
         private static partial Regex RegexEscape();
     }

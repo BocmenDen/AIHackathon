@@ -55,7 +55,7 @@ namespace AIHackathon.Pages
         private async Task HandleNewUpdateContext(UpdateContext context, bool isNavigate)
         {
             var serachButtons = context.BotFunctions.GetIndexButton(context.Update, ButtonsReset);
-            if((!isNavigate && serachButtons != null) || ((TestModel != null || IsPlagiatMyCommand) && context.Update.UpdateType.HasFlag(UpdateType.Media)))
+            if ((!isNavigate && serachButtons != null) || ((TestModel != null || IsPlagiatMyCommand) && context.Update.UpdateType.HasFlag(UpdateType.Media)))
             {
                 await pageRouter.Navigate(context, Key);
                 return;

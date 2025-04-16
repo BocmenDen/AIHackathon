@@ -30,6 +30,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Update="Resources\Demo.jpg">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\DemoStart.jpg">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
 	  <None Update="Resources\Dockerfile">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>

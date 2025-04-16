@@ -42,6 +42,6 @@ namespace AIHackathon.Services
         }
 
         public ValueTask<string> GetCurrentComputerPath(string subPath) => new(Path.GetFullPath(Path.Combine(options.Value.PathRoot, subPath)));
-        public ValueTask ReturnCurrentComputerPath(string fullPath) => ValueTask.CompletedTask;
+        public ValueTask ReturnCurrentComputerPath(string _) => ValueTask.CompletedTask;
     }
 }
