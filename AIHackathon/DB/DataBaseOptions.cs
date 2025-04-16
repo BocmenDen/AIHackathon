@@ -2,11 +2,11 @@
 {
     public class DataBaseOptions
     {
-        public string? Path { get; set; }
+        public string? Connection { get; set; }
         public TimeSpan? TimeoutCacheUser { get; set; }
 
         public string GetPathOrDefault()
-            => string.IsNullOrWhiteSpace(Path) ? $"{System.IO.Path.GetRandomFileName()}.db" : Path;
+            => string.IsNullOrWhiteSpace(Connection) ? $"{System.IO.Path.GetRandomFileName()}.db" : Connection;
 
         public TimeSpan GetTimeoutCacheUserOrDefault() => TimeoutCacheUser ?? TimeSpan.FromMinutes(5);
     }

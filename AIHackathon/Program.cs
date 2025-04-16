@@ -45,7 +45,8 @@ namespace AIHackathon
                 .RegisterFiltersRouterAuto<User, UpdateContext>() // Регистрация фильтров
                 .RegisterDBContextOptions((s, _, b) =>
                 {
-                    b.UseSqlite($"Data Source={s.GetRequiredService<IOptions<DataBaseOptions>>().Value.GetPathOrDefault()}");
+                    var options = s.GetRequiredService<IOptions<DataBaseOptions>>();
+                    b.UseNpgsql(options.Value.Connection);
                 });
 
         static void Main(string[] args)

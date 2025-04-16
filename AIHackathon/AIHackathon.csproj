@@ -22,8 +22,8 @@
 		<PackageReference Include="BotCoreGenerator.PageRouter.Mirror" Version="1.0.12-alpha-1" />
 		<PackageReference Include="Docker.DotNet" Version="3.125.15" />
 		<PackageReference Include="libphonenumber-csharp" Version="9.0.3" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.4" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
 		<PackageReference Include="Pullenti.Core" Version="4.3.0" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
 		<PackageReference Include="WeCantSpell.Hunspell" Version="6.0.0" />
