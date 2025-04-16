@@ -24,7 +24,6 @@ namespace AIHackathon
         /// Создание и конфигурация хоста
         /// </summary>
         static IHostBuilder ConfigureServices() => BotBuilder.CreateDefaultBuilder()
-                .ConfigureAppConfiguration(app => app.AddUserSecrets(Assembly.GetExecutingAssembly()))
                 .RegisterServices(
                     Assembly.GetAssembly(typeof(Program)),
                     Assembly.GetAssembly(typeof(TgClient)),
@@ -49,12 +48,18 @@ namespace AIHackathon
                     b.UseSqlite($"Data Source={s.GetRequiredService<IOptions<DataBaseOptions>>().Value.GetPathOrDefault()}");
                 });
 
-        static void Main()
+        static void Main(string[] args)
         {
-            IHost host = ConfigureServices()
+            IHostBuilder builder = ConfigureServices()
                         .RegisterClient<TgClient<User, DataBase>>()
-                        .RegisterPagesInRouter<User, UpdateContext, string>(Assembly.GetAssembly(typeof(Program))!)
-                        .Build();
+                        .RegisterPagesInRouter<User, UpdateContext, string>(Assembly.GetAssembly(typeof(Program))!);
+
+            if (args != null && args.Length == 1)
+                builder = builder.ConfigureAppConfiguration(x => x.AddJsonFile(args[0]));
+            else
+                builder = builder.ConfigureAppConfiguration(app => app.AddUserSecrets(Assembly.GetExecutingAssembly()));
+
+                IHost host = builder.Build();
 
 #if !DEBUGTESTMODEL
             var spamFilter = host.Services.GetRequiredService<MessageSpam>();
