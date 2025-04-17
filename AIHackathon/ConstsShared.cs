@@ -6,6 +6,12 @@ namespace AIHackathon
     {
         public const string ResourceButtonsMain = nameof(ResourceButtonsMain);
 
+        public const string ScriptCommandKeras = "getKerasSaveModelScript";
+        public const string ScriptCommandSklearn = "getSklearnSaveModelScript";
+        public const string ScriptCommandXGBoost = "getXGBoostSaveModelScript";
+        public const string ScriptCommandAuto = "getAutoSaveModelScript";
+        public const string ScriptCommandDefault = "getDefaultSaveModelScript";
+
         public readonly static ButtonSend ButtonYes = "Да";
         public readonly static ButtonSend ButtonNo = "Нет";
 
