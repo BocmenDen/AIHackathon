@@ -96,16 +96,16 @@ namespace AIHackathon.DB
         {
             var query = $@"
 SELECT 
-    p.{particantGetId} AS {nameof(RatingInfo<object>.SubjectId)},
-    COUNT(*) AS {nameof(RatingInfo<object>.CountMetric)},
-    MIN(m.{nameof(MetricParticipant.Accuracy)}) AS {nameof(RatingInfo<object>.Metric)},
-    RANK() OVER (ORDER BY MIN(m.{nameof(MetricParticipant.Accuracy)})) AS {nameof(RatingInfo<object>.Rating)},
-    ROW_NUMBER() OVER (ORDER BY MIN(m.{nameof(MetricParticipant.Accuracy)})) AS {nameof(RatingInfo<object>.Position)}
-FROM {nameof(Participants)} p
-JOIN {nameof(Metrics)} m ON p.{nameof(Participant.Id)} = m.{nameof(MetricParticipant.ParticipantId)}
-WHERE (m.{nameof(MetricParticipant.Error)} IS NULL OR m.{nameof(MetricParticipant.Error)} = '')
-GROUP BY p.{particantGetId}
-ORDER BY MIN(m.{nameof(MetricParticipant.Accuracy)})
+    p.""{particantGetId}"" AS ""{nameof(RatingInfo<object>.SubjectId)}"",
+    COUNT(*) AS ""{nameof(RatingInfo<object>.CountMetric)}"",
+    MIN(m.""{nameof(MetricParticipant.Accuracy)}"") AS ""{nameof(RatingInfo<object>.Metric)}"",
+    RANK() OVER (ORDER BY MIN(m.""{nameof(MetricParticipant.Accuracy)}"")) AS ""{nameof(RatingInfo<object>.Rating)}"",
+    ROW_NUMBER() OVER (ORDER BY MIN(m.""{nameof(MetricParticipant.Accuracy)}"")) AS ""{nameof(RatingInfo<object>.Position)}""
+FROM ""{nameof(Participants)}"" p
+JOIN ""{nameof(Metrics)}"" m ON p.""{nameof(Participant.Id)}"" = m.""{nameof(MetricParticipant.ParticipantId)}""
+WHERE (m.""{nameof(MetricParticipant.Error)}"" IS NULL OR m.""{nameof(MetricParticipant.Error)}"" = '')
+GROUP BY p.""{particantGetId}""
+ORDER BY MIN(m.""{nameof(MetricParticipant.Accuracy)}"")
 ";
             return Set<RatingInfo<T>>().FromSqlRaw(query).Include(x => x.Subject);
         }

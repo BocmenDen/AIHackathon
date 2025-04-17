@@ -51,6 +51,8 @@ namespace AIHackathon
 
         static void Main(string[] args)
         {
+            AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
             IHostBuilder builder = ConfigureServices()
                         .RegisterClient<TgClient<User, DataBase>>()
                         .RegisterPagesInRouter<User, UpdateContext, string>(Assembly.GetAssembly(typeof(Program))!);
