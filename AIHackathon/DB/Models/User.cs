@@ -24,5 +24,7 @@ namespace AIHackathon.DB.Models
         public bool IsRegister => ParticipantId is not null;
 
         public Chat GetTgChat() => TgChat;
+
+        public override string ToString() => $"Id: {Id}, Tg: {TgChat.Username}, ФИО: {Participant?.Surname} {Participant?.Name} {Participant?.MiddleName}";
     }
 }

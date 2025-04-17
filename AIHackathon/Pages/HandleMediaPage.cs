@@ -8,6 +8,7 @@ using BotCore.Interfaces;
 using BotCore.PageRouter.Interfaces;
 using BotCore.Services;
 using BotCoreGenerator.PageRouter.Mirror;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
@@ -29,10 +30,12 @@ namespace AIHackathon.Pages
         private readonly static MediaSource MediaMessageState = MediaSource.FromUri("https://media1.tenor.com/m/_28Wpe-HrfIAAAAC/nervous-spongebob.gif");
         private readonly static MediaSource MediaEnd = MediaSource.FromUri("https://media.tenor.com/flGNpobJuuoAAAAi/happy-clap.gif");
         private readonly static MediaSource MediaLoadingFiles = MediaSource.FromUri("https://media1.tenor.com/m/JG9-sqzIMgQAAAAd/work-files-filing-cabinet.gif");
+        private readonly static MediaSource MediaLimitError = MediaSource.FromUri("https://media.tenor.com/yn7b5sHWez0AAAAi/dislike-no.gif");
 
         private readonly static ButtonsSend ButtonsReset = new([["Начать отправку новой модели"]]);
 
         private readonly CancellationTokenSource _cancellationTokenSource = new();
+        private bool _isLimit;
 
         protected partial string FilePath { get; set; }
         protected partial string? FileType { get; set; }
@@ -49,11 +52,19 @@ namespace AIHackathon.Pages
 
         public override Task HandleNewUpdateContext(UpdateContext context)
             => HandleNewUpdateContext(context, false);
-        public override Task OnNavigate(IUpdateContext<User> context)
-            => HandleNewUpdateContext(context, true);
+        public override async Task OnNavigate(IUpdateContext<User> context)
+        {
+            _isLimit = await IsLimit(context);
+            await HandleNewUpdateContext(context, true);
+        }
 
         private async Task HandleNewUpdateContext(UpdateContext context, bool isNavigate)
         {
+            if (_isLimit)
+            {
+                await SendIsLimit(context);
+                return;
+            }
             var serachButtons = context.BotFunctions.GetIndexButton(context.Update, ButtonsReset);
             if ((!isNavigate && serachButtons != null) || ((TestModel != null || IsPlagiatMyCommand) && context.Update.UpdateType.HasFlag(UpdateType.Media)))
             {
@@ -73,17 +84,33 @@ namespace AIHackathon.Pages
             if (FilePath is null)
             {
                 if (await LoadMedias(context)) return;
-                if (await CombineFiles()) return;
+                if (await CombineFiles(context)) return;
             }
             if (await WaitStep(IsPlagiatStep(context), context, "проверка на плагиат"))
             {
                 await SendPlagiatInfo(context);
                 return;
             }
-            _ = await WaitStep(TestModelStep(context), context, "тестирование модели");
+            if(!await WaitStep(TestModelStep(context), context, "тестирование модели"))
+            {
+                await SendIsLimit(context);
+                return;
+            }
             await SendTestModelInfo(context);
         }
 
+        private static async Task SendIsLimit(IUpdateContext<User> context)
+        {
+            await context.Reply(new SendModel()
+            {
+                Message = "🚫 Ваша команда больше не может отправлять модели на оценивание — достигнут лимит попыток",
+                Medias = [MediaLimitError]
+            });
+        }
+        private async Task<bool> IsLimit(IUpdateContext<User> context)
+        {
+            return await db.TakeObjectAsync(x => x.Metrics.Include(x => x.Participant).Where(x => x.Participant!.CommandId == context.User.Participant!.CommandId && x.Error != null && x.Error != "").CountAsync()) > options.Value.MaxCountMetricsCommand;
+        }
         private async Task<bool> LoadMedias(UpdateContext context)
         {
             StringBuilder stringBuilder = new();
@@ -91,7 +118,7 @@ namespace AIHackathon.Pages
             {
                 FileType ??= context.Update.Medias![0].Type;
                 _ = await WaitStep(LoadMedias(context, stringBuilder), context, $"Выполняю скачивание {context.Update.Medias!.Count} файлов");
-                await Model.Save();
+                await SaveStorage();
             }
             if (CountParts == 0)
             {
@@ -130,7 +157,7 @@ namespace AIHackathon.Pages
             {
                 object lockObj = new();
                 await Task.WhenAll(context.Update.Medias!.Select(LoadMedia(stringBuilder, lockObj)));
-                await Model.Save();
+                await SaveStorage();
                 return true;
 
                 Func<MediaSource, Task> LoadMedia(StringBuilder stringBuilder, object lockObj)
@@ -188,12 +215,12 @@ namespace AIHackathon.Pages
                 }
             }
         }
-        private async Task<bool> CombineFiles()
+        private async Task<bool> CombineFiles(UpdateContext context)
         {
             if (FilePath is null && PartFiles.Count == CountParts && CountParts > 0)
             {
                 var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}.{FileType}";
-                var filePath = Path.Combine(options.Value.PathUserFiles, fileName);
+                var filePath = Path.Combine(options.Value.PathUserFiles, Path.Combine(context.User.ParticipantId.ToString()!, fileName));
                 using var fileStream = await storage.CreateFile(filePath);
 
                 foreach (var (_, fileInfo) in PartFiles.OrderBy(x => x.Key))
@@ -204,7 +231,7 @@ namespace AIHackathon.Pages
                     await storage.DeleteFile(fileInfo.Path);
                 }
                 FilePath = filePath;
-                await Model.Save();
+                await SaveStorage();
                 return false;
             }
             return true;
@@ -243,6 +270,8 @@ namespace AIHackathon.Pages
         private async Task<bool> TestModelStep(UpdateContext context)
         {
             var resultTesting = await testModel.Testing(FilePath!, FileType!);
+            _isLimit = await IsLimit(context);
+            if (_isLimit) return false;
             MetricParticipant metricResult = new()
             {
                 PathFile = FilePath!,
@@ -261,7 +290,7 @@ namespace AIHackathon.Pages
             });
             IdMetric = metricResult.Id;
             TestModel = resultTesting;
-            await Model.Save();
+            await SaveStorage();
             return true;
         }
         private Task SendPlagiatInfo(UpdateContext context)

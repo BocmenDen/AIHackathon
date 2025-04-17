@@ -12,14 +12,14 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="BotCore" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCore.EfDb" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCore.FilterRouter" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCore.OneBot" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCore.PageRouter" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCore.SpamBroker" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCore.Tg" Version="1.0.12-alpha-1" />
-		<PackageReference Include="BotCoreGenerator.PageRouter.Mirror" Version="1.0.12-alpha-1" />
+		<PackageReference Include="BotCore" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCore.EfDb" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCore.FilterRouter" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCore.OneBot" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCore.PageRouter" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCore.SpamBroker" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCore.Tg" Version="1.0.13-alpha-1" />
+		<PackageReference Include="BotCoreGenerator.PageRouter.Mirror" Version="1.0.13-alpha-1" />
 		<PackageReference Include="Docker.DotNet" Version="3.125.15" />
 		<PackageReference Include="libphonenumber-csharp" Version="9.0.3" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

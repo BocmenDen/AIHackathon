@@ -107,7 +107,7 @@ WHERE (m.""{nameof(MetricParticipant.Error)}"" IS NULL OR m.""{nameof(MetricPart
 GROUP BY p.""{particantGetId}""
 ORDER BY MIN(m.""{nameof(MetricParticipant.Accuracy)}"")
 ";
-            return Set<RatingInfo<T>>().FromSqlRaw(query).Include(x => x.Subject);
+            return Set<RatingInfo<T>>().FromSqlRaw(query).Include(x => x.Subject).OrderBy(x => x.Position);
         }
 
         public IQueryable<RatingInfo<Command>> GetCommandsRating() => GetQueryRating<Command>(nameof(Participant.CommandId));

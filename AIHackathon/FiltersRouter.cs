@@ -20,23 +20,17 @@ namespace AIHackathon
         [IsRegisterFilter]
         private static Task SendMeInfo(UpdateContext context) => context.Reply(context.User.GetInfoUser());
 
-        public const string ScriptCommandKeras = "getKerasSaveModelScript";
-        public const string ScriptCommandSklearn = "getSklearnSaveModelScript";
-        public const string ScriptCommandXGBoost = "getXGBoostSaveModelScript";
-        public const string ScriptCommandAuto = "getAutoSaveModelScript";
-        public const string ScriptCommandDefault = "getDefaultSaveModelScript";
-
         private readonly static Dictionary<string, string> SendScriptCommandFiles = new()
         {
-            { ScriptCommandKeras.ToLower(), "Resources/splitKerasModel.py" },
-            { ScriptCommandSklearn.ToLower(), "Resources/splitSklearnModel.py" },
-            { ScriptCommandXGBoost.ToLower(), "Resources/splitXGBoostModel.py" },
-            { ScriptCommandAuto.ToLower(), "Resources/splitAutoModel.py" },
-            { ScriptCommandDefault.ToLower(), "Resources/splitDefaultModel.py" }
+            { ConstsShared.ScriptCommandKeras.ToLower(), ConstsShared.GetPathResource("splitKerasModel.py") },
+            { ConstsShared.ScriptCommandSklearn.ToLower(), ConstsShared.GetPathResource("splitSklearnModel.py") },
+            { ConstsShared.ScriptCommandXGBoost.ToLower(), ConstsShared.GetPathResource("splitXGBoostModel.py") },
+            { ConstsShared.ScriptCommandAuto.ToLower(), ConstsShared.GetPathResource("splitAutoModel.py") },
+            { ConstsShared.ScriptCommandDefault.ToLower(), ConstsShared.GetPathResource("splitDefaultModel.py") }
         };
-        private readonly static ButtonsSend ButtonsSendScriptCommand = new([["К справке"]]);
+        private readonly static ButtonsSend ButtonsSendScriptCommand = new([["⬅️ Обратно"]]);
         [IsRegisterFilter]
-        [CommandFilter(true, ScriptCommandKeras, ScriptCommandSklearn, ScriptCommandXGBoost, ScriptCommandAuto, ScriptCommandDefault)]
+        [CommandFilter(true, ConstsShared.ScriptCommandKeras, ConstsShared.ScriptCommandSklearn, ConstsShared.ScriptCommandXGBoost, ConstsShared.ScriptCommandAuto, ConstsShared.ScriptCommandDefault)]
         private static Task SendScriptCommand(UpdateContext context)
         {
             if (!SendScriptCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var path))
