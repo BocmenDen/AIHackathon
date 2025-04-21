@@ -50,7 +50,7 @@ namespace AIHackathon.Pages
                 _indexPage = newIndexPage - 1;
             }
             var dbObj = db.Get();
-            var countsCommand = await dbObj.Commands.CountAsync();
+            var countsCommand = await dbObj.GetCommandsRating().CountAsync();
             var lastPage = countsCommand / options.Value.CountCommandsInPage;
             if (_indexPage > lastPage)
                 _indexPage = lastPage;
