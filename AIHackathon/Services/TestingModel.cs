@@ -13,11 +13,6 @@ namespace AIHackathon.Services
 
         public async Task<TestModelResult> Testing(string pathFile, string fileType)
         {
-            //return new TestModelResult()
-            //{
-            //    Accuracy = Random.Shared.NextDouble(),
-            //    Library = "Test"
-            //};
             var fullPath = await filesStorage.GetCurrentComputerPath(pathFile);
 
             var parameters = new CreateContainerParameters()
