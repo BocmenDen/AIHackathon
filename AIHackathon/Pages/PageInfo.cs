@@ -15,7 +15,7 @@ namespace AIHackathon.Pages
         private const string LibraryInfoChapters = "4 О доступных библиотеках";
         private const string SendModelInfoChapters = "5 Отправка модели";
         private const string EvaluationRulesInfoChapters = "6 Метрика и правила";
-        private readonly static ButtonsSend buttonsChapter = new([[RootChapters], [DatasetInfoChapters], [DemoInfoChapters], [LibraryInfoChapters], [SendModelInfoChapters], [EvaluationRulesInfoChapters]]);
+        private readonly static ButtonsSend buttonsChapterDefault = new([[RootChapters], [DatasetInfoChapters], [DemoInfoChapters], [LibraryInfoChapters], [SendModelInfoChapters], [EvaluationRulesInfoChapters]]);
         private readonly static Dictionary<string, string> _infos = new()
         {
             { RootChapters,
@@ -166,26 +166,37 @@ $@"
         };
 
         protected string _chapter = RootChapters;
+        private ButtonsSend? buttonsChapter;
 
-        public override Task HandleNewUpdateContext(UpdateContext context)
+        public override async Task HandleNewUpdateContext(UpdateContext context)
         {
-            var buttons = context.BotFunctions.GetIndexButton(context.Update, buttonsChapter);
-            if (buttons is ButtonSearch btnS)
+            if (buttonsChapter != null)
             {
-                if (_chapter == btnS.Button.Text) return Task.CompletedTask;
-                _chapter = btnS.Button.Text;
+                var buttons = context.BotFunctions.GetIndexButton(context.Update, buttonsChapter);
+                if (buttons is ButtonSearch btnS)
+                {
+                    if (btnS.Button.Text.Contains(_chapter))
+                        await context.Reply([]);
+                    else
+                        _chapter = btnS.Button.Text;
+                }
             }
-            if (!_infos.TryGetValue(_chapter, out var text)) return context.ReplyBug("Не найден раздел для справки");
+            if (!_infos.TryGetValue(_chapter, out var text))
+            {
+                await context.ReplyBug("Не найден раздел для справки");
+                return;
+            }
             _mediasInfos.TryGetValue(_chapter, out var medias);
-            return context.Reply(new SendModel()
+            buttonsChapter = new ButtonsSend(buttonsChapterDefault.Buttons.Select(x =>
+            {
+                if (x[0].Text == _chapter)
+                    return [new ButtonSend($"📌 {x[0].Text}")];
+                return x;
+            }));
+            await context.Reply(new SendModel()
             {
                 Message = ToMarkdownV2Escaped(text),
-                Inline = new ButtonsSend(buttonsChapter.Buttons.Select(x =>
-                {
-                    if (x[0].Text == _chapter)
-                        return [new ButtonSend($"📌 {x[0].Text}")];
-                    return x;
-                })),
+                Inline = buttonsChapter,
                 Medias = medias
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
         }
