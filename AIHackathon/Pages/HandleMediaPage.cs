@@ -118,14 +118,14 @@ namespace AIHackathon.Pages
             {
                 FileType ??= context.Update.Medias![0].Type;
                 _ = await WaitStep(LoadMedias(context, stringBuilder), context, $"Выполняю скачивание {context.Update.Medias!.Count} файлов");
-                await SaveStorage();
+                await Model.Save();
             }
             if (CountParts == 0)
             {
                 await context.Reply(new()
                 {
                     Message = "📦 Загрузите все части обученной модели по отдельности или группой медиафайлов.",
-                    Medias = [MediaLoadingFiles]
+                  //  Medias = [MediaLoadingFiles]
                 });
                 return true;
             }
@@ -147,7 +147,7 @@ namespace AIHackathon.Pages
                 {
                     Message = stringBuilder.ToString(),
                     Inline = ButtonsReset,
-                    Medias = [MediaLoadingFiles]
+                   // Medias = [MediaLoadingFiles]
                 });
                 return true;
             }
