@@ -30,10 +30,19 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <None Update="Resources\Demo.jpg">
+	  <None Update="Resources\getMetric.py">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
-	  <None Update="Resources\DemoStart.jpg">
+	  <None Update="Resources\Task1\DatasetInfoChapter.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task1\Demo.jpg">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task1\DemoInfoChapter.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task1\DemoStart.jpg">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
 	  <None Update="Resources\Dockerfile">
@@ -51,19 +60,37 @@
 	  <None Update="Resources\predicted_keypoints.csv">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
-	  <None Update="Resources\splitAutoModel.py">
+	  <None Update="Resources\saveModel.py">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
-	  <None Update="Resources\splitDefaultModel.py">
+	  <None Update="Resources\EvaluationRulesInfoChapter.md">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
-	  <None Update="Resources\splitKerasModel.py">
+	  <None Update="Resources\LibraryInfoChapter.md">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
-	  <None Update="Resources\splitSklearnModel.py">
+	  <None Update="Resources\Task1\RootChapter.md">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
-	  <None Update="Resources\splitXGBoostModel.py">
+	  <None Update="Resources\SendModelExamples.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\SendModelInfoChapter.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task2\DatasetInfoChapter.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task2\Demo1.png">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task2\Demo2.png">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task2\DemoInfoChapter.md">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Resources\Task2\RootChapter.md">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
 	  <None Update="Resources\testingModel.py">

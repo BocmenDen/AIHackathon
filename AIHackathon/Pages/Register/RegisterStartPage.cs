@@ -7,14 +7,12 @@ using BotCore.PageRouter.Interfaces;
 using BotCore.PageRouter.Models;
 using BotCore.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
-using System.Reflection;
 
 namespace AIHackathon.Pages.Register
 {
     [PageCacheable(Key)]
-    public class RegisterStartPage(ConditionalPooledObjectProvider<DataBase> db, PageRouterHelper pageRouter, IMemoryCache memoryCache) : PageBase, IBindStorageModel<SharedRegisterModel>, IGetCacheOptions
+    public class RegisterStartPage(ConditionalPooledObjectProvider<DataBase> db, PageRouterHelper pageRouter) : PageBaseClearCache, IBindStorageModel<SharedRegisterModel>
     {
         public const string Key = "RegisterStartPage";
         public readonly static ButtonSend ButtonBackRegisterMain = "⬅️ Открыть регистрацию";
@@ -41,8 +39,6 @@ namespace AIHackathon.Pages.Register
 
 ⚠️ Указывайте данные в точности как на платформе Braim, иначе вы не сможете пройти авторизацию.
 """;
-
-        private readonly CancellationTokenSource _cancellationTokenSource = new();
         private ButtonsSend _lastSendButtons = null!;
         private Participant? _participant = null;
 
@@ -91,9 +87,7 @@ namespace AIHackathon.Pages.Register
                     ParticipantId = context.User.ParticipantId!.Value,
                     Accuracy = 0.1,
                     DateTime = DateTime.Now.AddMinutes(-1),
-                    Library = "L1",
-                    PathFile = "Test.txt",
-                    FileHash = string.Empty
+                    PathFile = "Test.txt"
                 });
                 return db.SaveChangesAsync();
             });
@@ -129,25 +123,6 @@ namespace AIHackathon.Pages.Register
                     buttons.Add(ButtonAutorization);
             }
             _lastSendButtons = new(buttons.Select(x => Enumerable.Empty<ButtonSend>().Append(x)));
-        }
-
-        protected override async Task OnExit(IUpdateContext<User> context)
-        {
-            await _cancellationTokenSource.CancelAsync();
-        }
-
-        public MemoryCacheEntryOptions GetCacheOptions()
-        {
-            var options = new MemoryCacheEntryOptions();
-            PageCacheableAttribute pageCacheableAttribute = GetType().GetCustomAttribute<PageCacheableAttribute>()!;
-            options.SlidingExpiration = pageCacheableAttribute.SlidingExpiration;
-            options.AddExpirationToken(new CancellationChangeToken(_cancellationTokenSource.Token));
-            options.RegisterPostEvictionCallback((object key, object? value, EvictionReason reason, object? state) =>
-            {
-                memoryCache.Remove(key);
-                _cancellationTokenSource.Dispose();
-            });
-            return options;
         }
     }
 }

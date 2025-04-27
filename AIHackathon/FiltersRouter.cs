@@ -22,15 +22,11 @@ namespace AIHackathon
 
         private readonly static Dictionary<string, string> SendScriptCommandFiles = new()
         {
-            { ConstsShared.ScriptCommandKeras.ToLower(), ConstsShared.GetPathResource("splitKerasModel.py") },
-            { ConstsShared.ScriptCommandSklearn.ToLower(), ConstsShared.GetPathResource("splitSklearnModel.py") },
-            { ConstsShared.ScriptCommandXGBoost.ToLower(), ConstsShared.GetPathResource("splitXGBoostModel.py") },
-            { ConstsShared.ScriptCommandAuto.ToLower(), ConstsShared.GetPathResource("splitAutoModel.py") },
-            { ConstsShared.ScriptCommandDefault.ToLower(), ConstsShared.GetPathResource("splitDefaultModel.py") }
+            { ConstsShared.ScriptCommandSave.ToLower(), ConstsShared.GetPathResource("saveModel.py") }
         };
         private readonly static ButtonsSend ButtonsSendScriptCommand = new([["⬅️ Обратно"]]);
         [IsRegisterFilter]
-        [CommandFilter(true, ConstsShared.ScriptCommandKeras, ConstsShared.ScriptCommandSklearn, ConstsShared.ScriptCommandXGBoost, ConstsShared.ScriptCommandAuto, ConstsShared.ScriptCommandDefault)]
+        [CommandFilter(true, ConstsShared.ScriptCommandSave)]
         private static Task SendScriptCommand(UpdateContext context)
         {
             if (!SendScriptCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var path))
@@ -42,45 +38,6 @@ namespace AIHackathon
                 Inline = ButtonsSendScriptCommand
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
         }
-
-        //public const string ResourceFaceDataNpz = "getFacesDataNpz";
-        //public const string ResourceFaceDataCsv = "getFacesDataCsv";
-        //private readonly static Dictionary<string, MediaSource> SendResourcesCommandFiles = new()
-        //{
-        //    { ResourceFaceDataNpz.ToLower(), MediaSource.FromFile("Resources/faces_data.npz") },
-        //    { ResourceFaceDataCsv.ToLower(), MediaSource.FromFile("Resources/predicted_keypoints.csv") },
-        //};
-        //[IsRegisterFilter]
-        //[CommandFilter(true, ResourceFaceDataNpz, ResourceFaceDataCsv)]
-        //private static Task SendResourceCommand(UpdateContext context)
-        //{
-        //    if (!SendResourcesCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var resource))
-        //        return context.ReplyBug("Искомый ресурс не обнаружен");
-        //    return context.Reply(new()
-        //    {
-        //        Message = "Вот запрашиваемый ресурс",
-        //        Medias = [resource]
-        //    });
-        //}
-
-#if DEBUGTEST
-        private readonly static MediaSource MediaExitHandle = MediaSource.FromUri("https://media1.tenor.com/m/wLCaGpXM7VgAAAAC/exit-exit-pepe.gif");
-        [CommandFilter(true, "exit")]
-        [IsRegisterFilter]
-        private static async Task ExitHandle(UpdateContext context, ConditionalPooledObjectProvider<DataBase> dbP)
-        {
-            await context.Reply(new()
-            {
-                Message = $"Выполнен выход из аккаунта:\n{context.User.GetInfoUser()}",
-                Medias = [MediaExitHandle]
-            });
-            await dbP.TakeObjectAsync(x =>
-            {
-                x.RemoveUser(context.User);
-                return x.SaveChangesAsync();
-            });
-        }
-#endif
 
         [CommandFilter(true, "keyboard")]
         [IsRegisterFilter]
@@ -133,5 +90,24 @@ namespace AIHackathon
                 Medias = [MediaGetNewsInfo]
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
         }
+
+#if DEBUGTEST
+        private readonly static MediaSource MediaExitHandle = MediaSource.FromUri("https://media1.tenor.com/m/wLCaGpXM7VgAAAAC/exit-exit-pepe.gif");
+        [CommandFilter(true, "exit")]
+        [IsRegisterFilter]
+        private static async Task ExitHandle(UpdateContext context, ConditionalPooledObjectProvider<DataBase> dbP)
+        {
+            await context.Reply(new()
+            {
+                Message = $"Выполнен выход из аккаунта:\n{context.User.GetInfoUser()}",
+                Medias = [MediaExitHandle]
+            });
+            await dbP.TakeObjectAsync(x =>
+            {
+                x.RemoveUser(context.User);
+                return x.SaveChangesAsync();
+            });
+        }
+#endif
     }
 }

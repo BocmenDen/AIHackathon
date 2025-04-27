@@ -1,4 +1,5 @@
 ﻿using AIHackathon.DB.Models;
+using AIHackathon.Pages;
 using AIHackathon.Utils;
 using BotCore.Services;
 using Newtonsoft.Json;
@@ -19,6 +20,8 @@ namespace AIHackathon.DB
         {
             return _db.TakeObject(async (db) =>
             {
+                if (key == HandleMediaPage.Key)
+                    user.ModelPage = null;
                 user.KeyPage = key;
                 db.Users.Update(user);
                 await db.SaveChangesAsync();

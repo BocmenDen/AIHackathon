@@ -2,13 +2,16 @@
 #pragma warning disable CA1822 // Пометьте члены как статические
 
 using AIHackathon.Models;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace AIHackathon.Services
 {
-    [Service(ServiceType.Singleton)]
-    public class FilesStorage(IOptions<Settings> options)
+    [Service(ServiceType.Hosted)]
+    public class FilesStorage(IOptions<Settings> options) : IHostedService
     {
+        private const string PathTempFiles = "TmpFiles";
+
         public ValueTask<Stream> OpenReadFile(string subPath) => new(File.OpenRead(Path.Combine(options.Value.PathRoot, subPath)));
 
         public ValueTask<Stream> CreateFile(string subPath)
@@ -41,7 +44,33 @@ namespace AIHackathon.Services
                 await ClearFolder(directory);
         }
 
+        public async ValueTask<TempFileInfo> CreateTempFile(string ex = ".tmp")
+        {
+            var fileName = Path.GetTempFileName() + ex;
+            var filePath = Path.Combine(PathTempFiles, fileName);
+            var file = await CreateFile(filePath);
+            return new TempFileInfo()
+            {
+                Stream = file,
+                Path = filePath,
+            };
+        }
+
         public ValueTask<string> GetCurrentComputerPath(string subPath) => new(Path.GetFullPath(Path.Combine(options.Value.PathRoot, subPath)));
-        public ValueTask ReturnCurrentComputerPath(string _) => ValueTask.CompletedTask;
+
+        public Task StartAsync(CancellationToken cancellationToken) => ClearFolder(PathTempFiles).AsTask();
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    public readonly struct TempFileInfo : IDisposable
+    {
+        public readonly string Path { get; init; }
+        public readonly Stream Stream { get; init; }
+
+        public void Dispose()
+        {
+            Stream.Dispose();
+            GC.SuppressFinalize(this);
+        }
     }
 }

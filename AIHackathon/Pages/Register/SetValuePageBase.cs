@@ -4,13 +4,10 @@ using AIHackathon.Extensions;
 using AIHackathon.Services;
 using BotCore.PageRouter.Interfaces;
 using BotCore.PageRouter.Models;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Primitives;
-using System.Reflection;
 
 namespace AIHackathon.Pages.Register
 {
-    public abstract partial class SetValuePageBase : PageBase, IBindStorageModel<SharedRegisterModel>, IBindService<IMemoryCache>, IBindService<PageRouterHelper>, IGetCacheOptions
+    public abstract partial class SetValuePageBase : PageBaseClearCache, IBindStorageModel<SharedRegisterModel>, IBindService<PageRouterHelper>
     {
         private static readonly ButtonsSend Buttons = new([[ConstsShared.ButtonYes], [ConstsShared.ButtonNo], [RegisterStartPage.ButtonBackRegisterMain]]);
         private readonly static ButtonsSend ButtonsBack = new([[RegisterStartPage.ButtonBackRegisterMain]]);
@@ -18,8 +15,6 @@ namespace AIHackathon.Pages.Register
         private readonly static MediaSource MediaIsOk = MediaSource.FromUri("https://media1.tenor.com/m/NpxX43CMKcsAAAAC/omni-man-omni-man-are-you-sure.gif");
 
         private StorageModel<SharedRegisterModel> _storageModel = null!;
-        private readonly CancellationTokenSource _cancellationTokenSource = new();
-        private IMemoryCache _memoryCache = null!;
         private PageRouterHelper _pageRouter = null!;
 
         protected abstract string MessageStart { get; }
@@ -96,20 +91,5 @@ namespace AIHackathon.Pages.Register
         });
 
         public void BindService(PageRouterHelper service) => _pageRouter = service;
-        public void BindService(IMemoryCache service) => _memoryCache = service;
-        protected override Task OnExit(UpdateContext context) => _cancellationTokenSource.CancelAsync();
-        public MemoryCacheEntryOptions GetCacheOptions()
-        {
-            var options = new MemoryCacheEntryOptions();
-            PageCacheableAttribute pageCacheableAttribute = GetType().GetCustomAttribute<PageCacheableAttribute>()!;
-            options.SlidingExpiration = pageCacheableAttribute.SlidingExpiration;
-            options.AddExpirationToken(new CancellationChangeToken(_cancellationTokenSource.Token));
-            options.RegisterPostEvictionCallback((object key, object? value, EvictionReason reason, object? state) =>
-            {
-                _memoryCache.Remove(key);
-                _cancellationTokenSource.Dispose();
-            });
-            return options;
-        }
     }
 }

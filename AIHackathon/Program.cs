@@ -135,11 +135,9 @@ namespace AIHackathon
                 db.Metrics.Add(new MetricParticipant()
                 {
                     ParticipantId = particantTmp.Id,
-                    Library = "L1",
                     DateTime = DateTime.Now.AddMinutes(-i),
                     PathFile = "Test.txt",
-                    Accuracy = Random.Shared.NextDouble() / 2,
-                    FileHash = string.Empty
+                    Accuracy = Random.Shared.NextDouble() / 2
                 });
             }
             db.SaveChanges();

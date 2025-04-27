@@ -1,5 +1,6 @@
 ﻿global using BotCore.Attributes;
 global using BotCore.Models;
+global using BotCoreGenerator.PageRouter.Mirror;
 global using ButtonsFilter = BotCore.FilterRouter.Attributes.ButtonsFilterAttribute<AIHackathon.DB.Models.User>;
 global using CommandFilter = BotCore.FilterRouter.Attributes.CommandFilterAttribute<AIHackathon.DB.Models.User>;
 global using HandleFilterRouter = BotCore.FilterRouter.HandleFilterRouter<AIHackathon.DB.Models.User, BotCore.Interfaces.IUpdateContext<AIHackathon.DB.Models.User>>;

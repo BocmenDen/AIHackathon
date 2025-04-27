@@ -1,115 +1,107 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.DB;
 using AIHackathon.DB.Models;
-using AIHackathon.Extensions;
 using AIHackathon.Models;
 using AIHackathon.Services;
+using AIHackathon.Utils;
 using BotCore.Interfaces;
-using BotCore.PageRouter.Interfaces;
 using BotCore.Services;
-using BotCoreGenerator.PageRouter.Mirror;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 using System.Collections.Concurrent;
-using System.Reflection;
 using System.Text;
 
 namespace AIHackathon.Pages
 {
     [PageCacheable(Key)]
     [GenerateModelMirror]
-    public partial class HandleMediaPage(FilesStorage storage, FileCheckPlagiat fileCheckPlagiarist, TestingModel testModel, IOptions<Settings> options, ConditionalPooledObjectProvider<DataBase> db, IMemoryCache memoryCache, PageRouterHelper pageRouter) : PageBase, IGetCacheOptions
+    public partial class HandleMediaPage(
+        FilesStorage storage,
+        IOptions<Settings> options,
+        ConditionalPooledObjectProvider<DataBase> db,
+        PageRouterHelper pageRouter,
+        FilesArchive filesArchive,
+        DockerGenerateOutput dockerGenerateOutput,
+        LayerOldEditMessage<User, UpdateContext> oldEdit,
+        LoadMetrics loadMetrics) : PageBaseClearCache
     {
         public const string Key = "HandleMediaPage";
 
-        private const string TmpStorage = nameof(HandleMediaPage);
+        private const string PathUserFiles = "UserFiles";
 
-        private readonly static MediaSource MediaPlagiat = MediaSource.FromUri("https://media1.tenor.com/m/oCJsYj0GcEkAAAAC/copy-paste.gif");
-        private readonly static MediaSource MediaMessageState = MediaSource.FromUri("https://media1.tenor.com/m/_28Wpe-HrfIAAAAC/nervous-spongebob.gif");
         private readonly static MediaSource MediaEnd = MediaSource.FromUri("https://media.tenor.com/flGNpobJuuoAAAAi/happy-clap.gif");
-        private readonly static MediaSource MediaLoadingFiles = MediaSource.FromUri("https://media1.tenor.com/m/JG9-sqzIMgQAAAAd/work-files-filing-cabinet.gif");
         private readonly static MediaSource MediaLimitError = MediaSource.FromUri("https://media.tenor.com/yn7b5sHWez0AAAAi/dislike-no.gif");
 
         private readonly static ButtonsSend ButtonsReset = new([["Начать отправку новой модели"]]);
 
-        private readonly CancellationTokenSource _cancellationTokenSource = new();
-        private bool _isLimit;
-
-        protected partial string FilePath { get; set; }
         protected partial string? FileType { get; set; }
-        protected partial int? PlagiatId { get; set; }
-        protected partial string? PlagiatCommand { get; set; }
-        protected partial string? FileHash { get; set; }
-        protected partial bool IsPlagiatMyCommand { get; set; }
-        protected partial TestModelResult? TestModel { get; set; }
-        protected partial int IdMetric { get; set; }
-
         protected partial int CountParts { get; set; }
         protected partial byte[] InputFileHash { get; set; }
         protected partial ConcurrentDictionary<int, PartInfo> PartFiles { get; set; }
 
+        protected partial string EndStateMessage { get; set; }
+        protected partial EndStatesTypes EndStates { get; set; }
+
         public override Task HandleNewUpdateContext(UpdateContext context)
             => HandleNewUpdateContext(context, false);
-        public override async Task OnNavigate(IUpdateContext<User> context)
-        {
-            _isLimit = await IsLimit(context);
-            await HandleNewUpdateContext(context, true);
-        }
+        public override Task OnNavigate(UpdateContext context) => HandleNewUpdateContext(context, true);
 
         private async Task HandleNewUpdateContext(UpdateContext context, bool isNavigate)
         {
-            if (_isLimit)
-            {
-                await SendIsLimit(context);
-                return;
-            }
             var serachButtons = context.BotFunctions.GetIndexButton(context.Update, ButtonsReset);
-            if ((!isNavigate && serachButtons != null) || ((TestModel != null || IsPlagiatMyCommand) && context.Update.UpdateType.HasFlag(UpdateType.Media)))
+            if ((!isNavigate && serachButtons != null) ||
+                (!isNavigate && EndStates != EndStatesTypes.None && context.Update.UpdateType.HasFlag(UpdateType.Media)))
             {
                 await pageRouter.Navigate(context, Key);
                 return;
             }
-            if (IsPlagiatMyCommand)
-            {
-                await SendPlagiatInfo(context);
-                return;
-            }
-            if (TestModel != null)
-            {
-                await SendTestModelInfo(context);
-                return;
-            }
-            if (FilePath is null)
-            {
-                if (await LoadMedias(context)) return;
-                if (await CombineFiles(context)) return;
-            }
-            if (await WaitStep(IsPlagiatStep(context), context, "проверка на плагиат"))
-            {
-                await SendPlagiatInfo(context);
-                return;
-            }
-            if(!await WaitStep(TestModelStep(context), context, "тестирование модели"))
-            {
-                await SendIsLimit(context);
-                return;
-            }
-            await SendTestModelInfo(context);
+            if (await IsSendEndStateMessage(context)) return;
+            if (await CheckLimit(context)) return;
+            if (await LoadMedias(context)) return;
+            string pathFile = await CombineFiles(context);
+            await using var archive = await filesArchive.Open(pathFile);
+            string? outputPath = await GenerateOutput(context, pathFile, archive);
+            if (outputPath == null) return;
+            await TestModel(context, pathFile, outputPath);
         }
 
-        private static async Task SendIsLimit(IUpdateContext<User> context)
+        private async Task<bool> IsSendEndStateMessage(UpdateContext context)
         {
-            await context.Reply(new SendModel()
+            switch (EndStates)
             {
-                Message = "🚫 Ваша команда больше не может отправлять модели на оценивание — достигнут лимит попыток",
-                Medias = [MediaLimitError]
-            });
+                case EndStatesTypes.Limit:
+                    await context.Reply(new SendModel()
+                    {
+                        Message = "🚫 Ваша команда больше не может отправлять модели на оценивание — достигнут лимит попыток",
+                        Medias = [MediaLimitError]
+                    });
+                    return true;
+                case EndStatesTypes.Result:
+                    await context.Reply(new SendModel()
+                    {
+                        Message = EndStateMessage,
+                        Medias = [MediaEnd]
+                    });
+                    return true;
+                case EndStatesTypes.ResultError:
+                    await context.Reply(new SendModel()
+                    {
+                        Message = EndStateMessage,
+                        Medias = [ConstsShared.MediaError]
+                    });
+                    return true;
+                default:
+                    return false;
+            }
         }
-        private async Task<bool> IsLimit(IUpdateContext<User> context)
+        private async Task<bool> CheckLimit(UpdateContext context)
         {
-            return await db.TakeObjectAsync(x => x.Metrics.Include(x => x.Participant).Where(x => x.Participant!.CommandId == context.User.Participant!.CommandId && x.Error != null && x.Error != "").CountAsync()) > options.Value.MaxCountMetricsCommand;
+            var isLimit = await db.TakeObjectAsync(x => x.Metrics.Include(x => x.Participant).Where(x => x.Participant!.CommandId == context.User.Participant!.CommandId && x.Error != null && x.Error != "").CountAsync()) > options.Value.MaxCountMetricsCommand;
+            if (!isLimit) return false;
+            EndStates = EndStatesTypes.Limit;
+            await Model.Save();
+            _ = await IsSendEndStateMessage(context);
+            return true;
         }
         private async Task<bool> LoadMedias(UpdateContext context)
         {
@@ -117,7 +109,9 @@ namespace AIHackathon.Pages
             if (context.Update.UpdateType.HasFlag(UpdateType.Media))
             {
                 FileType ??= context.Update.Medias![0].Type;
-                _ = await WaitStep(LoadMedias(context, stringBuilder), context, $"Выполняю скачивание {context.Update.Medias!.Count} файлов");
+                PartFiles ??= new();
+                int oldCountFiles = PartFiles.Count;
+                _ = await context.WaitStep(LoadMedias(context, stringBuilder), () => $"Скачано {PartFiles.Count - oldCountFiles} из {context.Update.Medias!.Count} файлов");
                 await Model.Save();
             }
             if (CountParts == 0)
@@ -125,7 +119,6 @@ namespace AIHackathon.Pages
                 await context.Reply(new()
                 {
                     Message = "📦 Загрузите все части обученной модели по отдельности или группой медиафайлов.",
-                  //  Medias = [MediaLoadingFiles]
                 });
                 return true;
             }
@@ -146,8 +139,7 @@ namespace AIHackathon.Pages
                 await context.Reply(new()
                 {
                     Message = stringBuilder.ToString(),
-                    Inline = ButtonsReset,
-                   // Medias = [MediaLoadingFiles]
+                    Inline = ButtonsReset
                 });
                 return true;
             }
@@ -169,9 +161,8 @@ namespace AIHackathon.Pages
                         await fileMedia.ReadExactlyAsync(bufferHash);
                         int countParts = fileMedia.ReadByte();
                         int pos = fileMedia.ReadByte();
-                        var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}_{pos}_{mediaSource.Name!}.{mediaSource.Type}";
-                        var filePath = Path.Combine(TmpStorage, fileName);
-                        using var fileStream = await storage.CreateFile(filePath);
+
+                        using var fileTemp = await storage.CreateTempFile(mediaSource.Type!);
 
                         void AddLog(string message)
                         {
@@ -184,7 +175,7 @@ namespace AIHackathon.Pages
                             }
                         }
 
-                        if (PartFiles == null)
+                        if (PartFiles == null || PartFiles.IsEmpty)
                         {
                             PartFiles = [];
                             InputFileHash = bufferHash;
@@ -205,79 +196,65 @@ namespace AIHackathon.Pages
                             AddLog($"Не загружен т.к данный фрагмент имеет неверный номер");
                             return;
                         }
-                        await fileMedia.CopyToAsync(fileStream);
+                        await fileMedia.CopyToAsync(fileTemp.Stream);
                         PartFiles[pos] = new PartInfo()
                         {
-                            Path = filePath,
+                            Path = fileTemp.Path,
                             Name = mediaSource.Name!
                         };
                     };
                 }
             }
         }
-        private async Task<bool> CombineFiles(UpdateContext context)
+        private async Task<string> CombineFiles(UpdateContext context)
         {
-            if (FilePath is null && PartFiles.Count == CountParts && CountParts > 0)
-            {
-                var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}.{FileType}";
-                var filePath = Path.Combine(options.Value.PathUserFiles, Path.Combine(context.User.ParticipantId.ToString()!, fileName));
-                using var fileStream = await storage.CreateFile(filePath);
+            var fileName = $"{DateTime.Now:dd.mm.yyyy_hh.mm.ss}.{FileType}";
+            var filePath = Path.Combine(PathUserFiles, Path.Combine(context.User.ParticipantId.ToString()!, fileName));
+            using var fileStream = await storage.CreateFile(filePath);
 
-                foreach (var (_, fileInfo) in PartFiles.OrderBy(x => x.Key))
-                {
-                    var filePart = await storage.OpenReadFile(fileInfo.Path);
-                    await filePart.CopyToAsync(fileStream);
-                    await filePart.DisposeAsync();
-                    await storage.DeleteFile(fileInfo.Path);
-                }
-                FilePath = filePath;
-                await SaveStorage();
-                return false;
-            }
-            return true;
-        }
-        private async Task<bool> IsPlagiatStep(UpdateContext context)
-        {
-            var resultPlagiat = await fileCheckPlagiarist.CheckPlagiat(FilePath!);
-            FileHash = resultPlagiat.Hash;
-            if (resultPlagiat.IsPlagiat)
+            foreach (var (_, fileInfo) in PartFiles.OrderBy(x => x.Key))
             {
-                if (resultPlagiat.PlagiatMetricParticipant!.Participant!.Command.Id == context.User.Participant!.Command.Id)
-                {
-                    IsPlagiatMyCommand = true;
-                }
-                else
-                {
-                    async Task<int> fSavePlagiatReport(DataBase x)
-                    {
-                        var plagiat = new Plagiat()
-                        {
-                            MetricPlagiatId = resultPlagiat.PlagiatMetricParticipant!.Id,
-                            ParticipantId = context.User.Participant!.Id,
-                        };
-                        x.Plagiats.Add(plagiat);
-                        await x.SaveChangesAsync();
-                        return plagiat.Id;
-                    }
-                    PlagiatCommand = resultPlagiat.PlagiatMetricParticipant!.Participant!.Command.Name;
-                    PlagiatId = await db.TakeObjectAsync(fSavePlagiatReport);
-                }
-                await storage.DeleteFile(FilePath!);
-                return true;
+                var filePart = await storage.OpenReadFile(fileInfo.Path);
+                await filePart.CopyToAsync(fileStream);
+                await filePart.DisposeAsync();
+                await storage.DeleteFile(fileInfo.Path);
             }
-            return false;
+            return filePath;
         }
-        private async Task<bool> TestModelStep(UpdateContext context)
+        private async Task<string?> GenerateOutput(UpdateContext context, string filePath, Archive archive)
         {
-            var resultTesting = await testModel.Testing(FilePath!, FileType!);
-            _isLimit = await IsLimit(context);
-            if (_isLimit) return false;
+            var resultTesting = await context.WaitStep(dockerGenerateOutput.Testing(archive), () => "генерация выходных данных");
+            if (resultTesting.IsError)
+            {
+                MetricParticipant metricResult = new()
+                {
+                    PathFile = filePath,
+                    Error = resultTesting.Error,
+                    Accuracy = 0,
+                    DateTime = DateTime.Now,
+                    ParticipantId = context.User.Participant!.Id
+                };
+                await db.TakeObjectAsync(x =>
+                {
+                    x.Metrics.Add(metricResult);
+                    return x.SaveChangesAsync();
+                });
+                EndStateMessage = @$"Произошла ошибка при оценивание вашей модели: {resultTesting.Error}
+
+Id записи: {metricResult.Id}";
+                EndStates = EndStatesTypes.ResultError;
+                await Model.Save();
+                _ = await IsSendEndStateMessage(context);
+                return null;
+            }
+            return resultTesting.PathOutput!;
+        }
+        private async Task TestModel(UpdateContext context, string filePath, string pathOutput)
+        {
+            var resultTesting = await context.WaitStep(loadMetrics.Load(pathOutput), () => "тестирование модели");
             MetricParticipant metricResult = new()
             {
-                PathFile = FilePath!,
-                FileType = FileType,
-                FileHash = FileHash!,
-                Library = resultTesting.Library,
+                PathFile = filePath,
                 Error = resultTesting.Error,
                 Accuracy = resultTesting.Accuracy,
                 DateTime = DateTime.Now,
@@ -288,108 +265,36 @@ namespace AIHackathon.Pages
                 x.Metrics.Add(metricResult);
                 return x.SaveChangesAsync();
             });
-            IdMetric = metricResult.Id;
-            TestModel = resultTesting;
-            await SaveStorage();
-            return true;
-        }
-        private Task SendPlagiatInfo(UpdateContext context)
-        {
-            if (IsPlagiatMyCommand)
-            {
-                return context.Reply(new()
-                {
-                    Message = "Ваша команда уже отправляла данное решение",
-                    Medias = [MediaPlagiat]
-                });
-            }
-            return context.Reply(new SendModel()
-            {
-                Message = @$"Обнаружен плагиат! Отправляемое решение совпадает с ""{PlagiatCommand}""
-
-Идентификатор записи о плагиате: {PlagiatId}
-
-Если не согласны отправте данное сообщение: TG/VK @BocmenDen
-Участник: {context.User.GetInfoUser()}
-",
-                Medias = [MediaPlagiat]
-            });
-        }
-        private async Task SendTestModelInfo(UpdateContext context)
-        {
-            if (TestModel is not TestModelResult resultTesting) return;
+            EndStates = resultTesting.IsError ? EndStatesTypes.ResultError : EndStatesTypes.Result;
             if (resultTesting.IsError)
             {
-                await context.Reply(new SendModel()
-                {
-                    Message = @$"Произошла ошибка при оценивании вашей модели: {resultTesting.Error}
+                EndStateMessage = @$"Произошла ошибка при оценивании вашей модели: {resultTesting.Error}
 
-Id записи: {IdMetric}
-",
-                    Medias = [ConstsShared.MediaError]
-                });
-                return;
+Id записи: {metricResult.Id}";
             }
-            await context.Reply(new SendModel()
+            else
             {
-                Message = @$"
+                EndStateMessage = @$"
 Модель успешно оценена!
 Результаты:
-├> Библиотека: {resultTesting.Library}
-└> Метрика: {resultTesting.Accuracy}",
-                Medias = [MediaEnd]
-            });
-        }
-        private async Task<T> WaitStep<T>(Task<T> task, UpdateContext context, string nameStep)
-        {
-            string waitLine = "";
-            while (!task.IsCompleted)
-            {
-                await context.Reply(new SendModel()
-                {
-                    Message = $@"
-Процесс оценки вашей модели запущен. Пожалуйста, не выполняйте никаких действий, пока он не завершится.
-├> обновилось в: {DateTime.Now}
-└> {nameStep} {waitLine}
-
-Если сообщение перестанет обновляться, возможно, произошла перезагрузка бота. В таком случае попробуйте повторно отправить файлы или сообщите об этом разработчику: @BocmenDen.",
-                    Medias = [MediaMessageState]
-                });
-                waitLine += "🐢";
-                await Task.WhenAny(Task.Delay(options.Value.WaitUpdateMessageTestingModel), task);
+└> Метрика: {resultTesting.Accuracy}";
             }
-            return await task;
-        }
-
-        protected override async Task OnExit(IUpdateContext<User> context)
-        {
-            await db.TakeObjectAsync(x =>
-            {
-                context.User.ModelPage = null;
-                x.Users.Update(context.User);
-                return x.SaveChangesAsync();
-            });
-            await _cancellationTokenSource.CancelAsync();
-        }
-
-        public MemoryCacheEntryOptions GetCacheOptions()
-        {
-            var options = new MemoryCacheEntryOptions();
-            PageCacheableAttribute pageCacheableAttribute = GetType().GetCustomAttribute<PageCacheableAttribute>()!;
-            options.SlidingExpiration = pageCacheableAttribute.SlidingExpiration;
-            options.AddExpirationToken(new CancellationChangeToken(_cancellationTokenSource.Token));
-            options.RegisterPostEvictionCallback((object key, object? value, EvictionReason reason, object? state) =>
-            {
-                memoryCache.Remove(key);
-                _cancellationTokenSource.Dispose();
-            });
-            return options;
+            await Model.Save();
+            _ = await IsSendEndStateMessage(context);
+            oldEdit.StopEditLastMessage(context.User.Id);
         }
 
         public struct PartInfo
         {
             public string Path;
             public string Name;
+        }
+        public enum EndStatesTypes
+        {
+            None,
+            Limit,
+            Result,
+            ResultError
         }
     }
 }

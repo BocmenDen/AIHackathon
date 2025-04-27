@@ -18,7 +18,6 @@ namespace AIHackathon.DB
         public DbSet<Command> Commands { get; set; } = null!;
         public DbSet<Participant> Participants { get; set; } = null!;
         public DbSet<MetricParticipant> Metrics { get; set; } = null!;
-        public DbSet<Plagiat> Plagiats { get; set; } = null!;
 
         /// <summary>
         /// TODO DELETE
