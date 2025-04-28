@@ -14,7 +14,9 @@ RUN pip install --upgrade pip && \
     scikit-learn==1.5.2 \
     xgboost==2.1.2 \ 
     torch==2.6.0 \
-    joblib==1.4.2
+    joblib==1.4.2 \ 
+    torchvision \ 
+    opencv-python
 
 WORKDIR /app
 
