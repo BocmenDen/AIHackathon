@@ -1,6 +1,7 @@
 ﻿using AIHackathon.Base;
 using AIHackathon.DB;
 using AIHackathon.DB.Models;
+using AIHackathon.Extensions;
 using AIHackathon.Models;
 using AIHackathon.Services;
 using AIHackathon.Utils;
@@ -48,21 +49,30 @@ namespace AIHackathon.Pages
 
         private async Task HandleNewUpdateContext(UpdateContext context, bool isNavigate)
         {
-            var serachButtons = context.BotFunctions.GetIndexButton(context.Update, ButtonsReset);
-            if ((!isNavigate && serachButtons != null) ||
-                (!isNavigate && EndStates != EndStatesTypes.None && context.Update.UpdateType.HasFlag(UpdateType.Media)))
+            try
             {
-                await pageRouter.Navigate(context, Key);
-                return;
+                var serachButtons = context.BotFunctions.GetIndexButton(context.Update, ButtonsReset);
+                if ((!isNavigate && serachButtons != null) ||
+                    (!isNavigate && EndStates != EndStatesTypes.None && context.Update.UpdateType.HasFlag(UpdateType.Media)))
+                {
+                    await pageRouter.Navigate(context, Key);
+                    return;
+                }
+                if (await IsSendEndStateMessage(context)) return;
+                if (await CheckLimit(context)) return;
+                if (await LoadMedias(context)) return;
+                string pathFile = await CombineFiles(context);
+                await using var archive = await filesArchive.Open(pathFile);
+                string? outputPath = await GenerateOutput(context, pathFile, archive);
+                if (outputPath == null) return;
+                await TestModel(context, pathFile, outputPath);
+            }catch(Exception e)
+            {
+                EndStates = EndStatesTypes.ResultError;
+                EndStateMessage = context.GetMessageBug(e);
+                await Model.Save();
+                await context.ReplyBug(e);
             }
-            if (await IsSendEndStateMessage(context)) return;
-            if (await CheckLimit(context)) return;
-            if (await LoadMedias(context)) return;
-            string pathFile = await CombineFiles(context);
-            await using var archive = await filesArchive.Open(pathFile);
-            string? outputPath = await GenerateOutput(context, pathFile, archive);
-            if (outputPath == null) return;
-            await TestModel(context, pathFile, outputPath);
         }
 
         private async Task<bool> IsSendEndStateMessage(UpdateContext context)

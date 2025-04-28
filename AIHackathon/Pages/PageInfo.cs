@@ -48,9 +48,35 @@ namespace AIHackathon.Pages
             buttonsChapter = new ButtonsSend(options.Value.PageInfo.Select<Chapter, IEnumerable<ButtonSend>>((x, i) => [new ButtonSend($"{(x.Name == _chapter ? "📌 " : "")}{i + 1} {x.Name}", [new KeyValuePair<string, object>(Key, x.Name)])]));
         }
 
-        public static string ToMarkdownV2Escaped(string input) => RegexEscape().Replace(input, @"\$1");
-        [GeneratedRegex(@"([\\.\-()#=!\[\]{}])")]
+        public static string ToMarkdownV2Escaped(string input) => EscapeExceptLinks(input);
+
+        private static readonly Regex LinkRegex = new(@"(?<link>\[[^\]]+\]\([^\)]+\))", RegexOptions.Compiled);
+        [GeneratedRegex(@"([\\/.\-()#=!\[\]{}])")]
         private static partial Regex RegexEscape();
+
+        public static string EscapeExceptLinks(string input)
+        {
+            var parts = new List<string>();
+            int lastIndex = 0;
+
+            foreach (Match match in LinkRegex.Matches(input))
+            {
+                if (match.Index > lastIndex)
+                {
+                    var beforeLink = input.Substring(lastIndex, match.Index - lastIndex);
+                    parts.Add(RegexEscape().Replace(beforeLink, @"\$1"));
+                }
+                parts.Add(match.Value);
+                lastIndex = match.Index + match.Length;
+            }
+            if (lastIndex < input.Length)
+            {
+                var afterLink = input.Substring(lastIndex);
+                parts.Add(RegexEscape().Replace(afterLink, @"\$1"));
+            }
+
+            return string.Concat(parts);
+        }
 
         public void PageLoading(User user)
         {

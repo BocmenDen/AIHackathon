@@ -27,13 +27,13 @@ namespace AIHackathon.Services
                 string? message = sendModel.Message;
                 if (!string.IsNullOrWhiteSpace(message))
                 {
-                    if (sendModel.Medias is not null && sendModel.Medias.Count > 0 && message.Length > 2040)
+                    if (sendModel.Medias is not null && sendModel.Medias.Count > 0 && message.Length > 2048)
                     {
-                        message = message.Substring(0, 2040);
+                        message = message.Substring(0, 2048);
                     }
-                    else if (message.Length > 4090)
+                    else if (message.Length > 4096)
                     {
-                        message = message.Substring(0, 4090);
+                        message = message.Substring(0, 4096);
                     }
                 }
                 sendModel.Message = message;

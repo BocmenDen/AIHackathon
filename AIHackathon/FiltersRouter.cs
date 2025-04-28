@@ -20,25 +20,6 @@ namespace AIHackathon
         [IsRegisterFilter]
         private static Task SendMeInfo(UpdateContext context) => context.Reply(context.User.GetInfoUser());
 
-        private readonly static Dictionary<string, string> SendScriptCommandFiles = new()
-        {
-            { ConstsShared.ScriptCommandSave.ToLower(), ConstsShared.GetPathResource("saveModel.py") }
-        };
-        private readonly static ButtonsSend ButtonsSendScriptCommand = new([["⬅️ Обратно"]]);
-        [IsRegisterFilter]
-        [CommandFilter(true, ConstsShared.ScriptCommandSave)]
-        private static Task SendScriptCommand(UpdateContext context)
-        {
-            if (!SendScriptCommandFiles.TryGetValue(context.Update.Command!.ToLower(), out var path))
-                return context.ReplyBug("Искомый ресурс не обнаружен");
-            var text = File.ReadAllText(path);
-            return context.Reply(new SendModel()
-            {
-                Message = $"```python\n{text}\n```",
-                Inline = ButtonsSendScriptCommand
-            }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.MarkdownV2));
-        }
-
         [CommandFilter(true, "keyboard")]
         [IsRegisterFilter]
         public static Task SendMainKeyboard(UpdateContext context)

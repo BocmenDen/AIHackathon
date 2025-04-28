@@ -24,12 +24,17 @@ namespace AIHackathon.Extensions
 
         public static Task ReplyBug(this UpdateContext context, Exception exception)
         {
-            var info = FormatExceptionWithGitHubLink(exception);
             return context.Reply(new SendModel()
             {
-                Message = GetMessageBug(context, exception.Message, info),
+                Message = GetMessageBug(context, exception),
                 Medias = [ConstsShared.MediaError]
             }.TgSetParseMode(Telegram.Bot.Types.Enums.ParseMode.Markdown));
+        }
+
+        public static string GetMessageBug(this UpdateContext context, Exception exception)
+        {
+            var info = FormatExceptionWithGitHubLink(exception);
+            return GetMessageBug(context, exception.Message, info);
         }
 
         private static string GetMessageBug(BotCore.Interfaces.IUpdateContext<DB.Models.User> context, string? message, string info)
