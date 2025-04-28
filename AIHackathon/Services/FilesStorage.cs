@@ -46,7 +46,7 @@ namespace AIHackathon.Services
 
         public async ValueTask<TempFileInfo> CreateTempFile(string ex = ".tmp")
         {
-            var fileName = Path.GetTempFileName() + ex;
+            var fileName = Path.GetRandomFileName() + ex;
             var filePath = Path.Combine(PathTempFiles, fileName);
             var file = await CreateFile(filePath);
             return new TempFileInfo()
