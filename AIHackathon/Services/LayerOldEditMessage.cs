@@ -24,6 +24,20 @@ namespace AIHackathon.Services
             }
             UpdateContextEdit newContext = new(context.BotFunctions, context.User, context.Update, async (sendModel) =>
             {
+                string? message = sendModel.Message;
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    if (sendModel.Medias is not null && sendModel.Medias.Count > 0 && message.Length > 2040)
+                    {
+                        message = message.Substring(0, 2040);
+                    }
+                    else if (message.Length > 4090)
+                    {
+                        message = message.Substring(0, 4090);
+                    }
+                }
+                sendModel.Message = message;
+
                 if (usersEditMessage.TryGetValue(context.User.Id, out object? lastMessage))
                 {
                     sendModel[BotCore.Tg.TgClient.KeyMessagesToEdit] = lastMessage;
