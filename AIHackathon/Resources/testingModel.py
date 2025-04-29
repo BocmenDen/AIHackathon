@@ -23,7 +23,7 @@ def main():
         args = parser.parse_args()
         prepared_data = np.load(args.image_file)['images']
         all_preds = []
-        batch_size = 32
+        batch_size = 128
         num_batches = len(prepared_data) // batch_size + (1 if len(prepared_data) % batch_size != 0 else 0)
         for i in range(num_batches):
             batch_data = prepared_data[i * batch_size: (i + 1) * batch_size]

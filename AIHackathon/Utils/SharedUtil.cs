@@ -11,19 +11,28 @@
         public static async Task WaitStep(this UpdateContext context, Task waitTask, Func<string> getMessageState)
         {
             string waitLine = "";
-            while (!waitTask.IsCompleted)
+            string getMessage()
             {
-                await context.Reply(new SendModel()
-                {
-                    Message = $@"
+                return $@"
 Пожалуйста, не выполняйте никаких действий, пока он не завершится процесс.
 ├> обновилось в: {DateTime.Now}
 └> {getMessageState()} {waitLine}
 
-Если сообщение перестанет обновляться, возможно, произошла перезагрузка бота. В таком случае попробуйте повторно отправить файлы или сообщите об этом разработчику: @BocmenDen.",
+Если сообщение перестанет обновляться, возможно, произошла перезагрузка бота. В таком случае попробуйте повторно отправить файлы или сообщите об этом разработчику: @BocmenDen.";
+            }
+            int lenDefault = ConstsShared.LimitCaptionMessage - getMessage().Length - 5;
+            while (!waitTask.IsCompleted)
+            {
+                await context.Reply(new SendModel()
+                {
+                    Message = getMessage(),
                     Medias = [MediaMessageState]
                 });
                 waitLine += "🐢";
+                if(waitLine.Length >= lenDefault)
+                {
+                    waitLine = string.Empty;
+                }
                 await Task.WhenAny(Task.Delay(TimeSpan.FromSeconds(2)), waitTask);
             }
             await waitTask;

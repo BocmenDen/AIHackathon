@@ -27,5 +27,8 @@ namespace AIHackathon
         public readonly static MediaSource MediaError = MediaSource.FromUri("https://media.tenor.com/8ND8TbjZqh0AAAAi/error.gif");
 
         public static string GetPathResource(string subPath) => Path.GetFullPath(Path.Combine("Resources", subPath));
+
+        public const int LimitMessage = 4096;
+        public const int LimitCaptionMessage = 1024;
     }
 }
